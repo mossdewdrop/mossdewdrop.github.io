@@ -1,0 +1,44 @@
+[
+  {
+    "category": "Image Tools",
+    "items": [
+      {
+        "name": "Channel Merger",
+        "path": "functions/image-tools/channel-merger"
+      },
+      {
+      "name": "Image 2 SDF",
+      "path": "functions/image-tools/img-2-sdf"
+      },
+      {
+        "name": "Gradient Tools",
+        "path": "functions/image-tools/gradient-tools"
+      },
+      {
+        "name": "Separate Objects",
+        "path": "functions/image-tools/separate-objects"
+      },
+      {
+        "name": "Image Alpha Fill",
+        "path": "functions/image-tools/img-alpha-fill"
+      },
+      {
+        "name": "Crop Image",
+        "path": "functions/image-tools/crop-image"
+      },
+      {
+        "name": "Batch Resize Images",
+        "path": "functions/image-tools/image-resizer"
+      }
+    ]
+  },
+  {
+    "category": "Others",
+    "items": [
+      {
+        "name": "About",
+        "path": "functions/other/about"
+      }
+    ]
+  }
+]

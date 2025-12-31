@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Image Channel Merger</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="app-container">
+        <h1>Image Channel Merger Tool</h1>
+        <p class="description">
+            Merge specific channels (R/G/B/A) from four images or solid color values into a new image.
+            Drag and drop image files into the boxes below.
+        </p>
+
+        <!-- Four Channel Input Areas -->
+        <div class="inputs-container">
+            <!-- Input template for each channel -->
+            <div class="channel-card" data-index="0">
+                <h2>Target R (Red)</h2>
+                <div class="drop-zone" data-channel="R">
+                    <span class="drop-prompt">Drag & Drop Image<br>or Click to Select</span>
+                    <img class="thumbnail" src="" alt="Thumbnail">
+                    <button class="remove-btn">&times;</button>
+                    <input type="file" class="file-input" accept="image/*">
+                </div>
+                <div class="controls">
+                    <div class="source-channel-selector">
+                        <label><input type="radio" name="source-r" value="R" checked> R</label>
+                        <label><input type="radio" name="source-r" value="G"> G</label>
+                        <label><input type="radio" name="source-r" value="B"> B</label>
+                        <label><input type="radio" name="source-r" value="A"> A</label>
+                    </div>
+                    <div class="value-slider">
+                        <input type="range" min="0" max="1" step="0.01" value="0">
+                        <span class="slider-value">0.00</span>
+                    </div>
+                </div>
+            </div>
+            <!-- G, B, A Channel Cards (Same structure) -->
+            <div class="channel-card" data-index="1">
+                <h2>Target G (Green)</h2>
+                <div class="drop-zone" data-channel="G">
+                    <span class="drop-prompt">Drag & Drop Image<br>or Click to Select</span>
+                    <img class="thumbnail" src="" alt="Thumbnail">
+                    <button class="remove-btn">&times;</button>
+                    <input type="file" class="file-input" accept="image/*">
+                </div>
+                <div class="controls">
+                    <div class="source-channel-selector">
+                        <label><input type="radio" name="source-g" value="R"> R</label>
+                        <label><input type="radio" name="source-g" value="G" checked> G</label>
+                        <label><input type="radio" name="source-g" value="B"> B</label>
+                        <label><input type="radio" name="source-g" value="A"> A</label>
+                    </div>
+                    <div class="value-slider">
+                        <input type="range" min="0" max="1" step="0.01" value="0">
+                        <span class="slider-value">0.00</span>
+                    </div>
+                </div>
+            </div>
+            <div class="channel-card" data-index="2">
+                <h2>Target B (Blue)</h2>
+                <div class="drop-zone" data-channel="B">
+                    <span class="drop-prompt">Drag & Drop Image<br>or Click to Select</span>
+                    <img class="thumbnail" src="" alt="Thumbnail">
+                    <button class="remove-btn">&times;</button>
+                    <input type="file" class="file-input" accept="image/*">
+                </div>
+                <div class="controls">
+                    <div class="source-channel-selector">
+                        <label><input type="radio" name="source-b" value="R"> R</label>
+                        <label><input type="radio" name="source-b" value="G"> G</label>
+                        <label><input type="radio" name="source-b" value="B" checked> B</label>
+                        <label><input type="radio" name="source-b" value="A"> A</label>
+                    </div>
+                    <div class="value-slider">
+                        <input type="range" min="0" max="1" step="0.01" value="0">
+                        <span class="slider-value">0.00</span>
+                    </div>
+                </div>
+            </div>
+            <div class="channel-card" data-index="3">
+                <h2>Target A (Alpha)</h2>
+                <div class="drop-zone" data-channel="A">
+                    <span class="drop-prompt">Drag & Drop Image<br>or Click to Select</span>
+                    <img class="thumbnail" src="" alt="Thumbnail">
+                    <button class="remove-btn">&times;</button>
+                    <input type="file" class="file-input" accept="image/*">
+                </div>
+                <div class="controls">
+                    <div class="source-channel-selector">
+                        <label><input type="radio" name="source-a" value="R"> R</label>
+                        <label><input type="radio" name="source-a" value="G"> G</label>
+                        <label><input type="radio" name="source-a" value="B"> B</label>
+                        <label><input type="radio" name="source-a" value="A" checked> A</label>
+                    </div>
+                    <div class="value-slider">
+                        <input type="range" min="0" max="1" step="0.01" value="1">
+                        <span class="slider-value">1.00</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 输出设置和预览 -->
+        <div class="output-container">
+            <div class="settings">
+                <label for="resolution-select">Output Resolution (px)</label>
+                <select id="resolution-select">
+                    <option value="256">256x256</option>
+                    <option value="512">512x512</option>
+                    <option value="1024" selected>1024x1024</option>
+                    <option value="2048">2048x2048</option>
+                    <option value="4096">4096x4096</option>
+                </select>
+            </div>
+            <div class="preview-wrapper">
+                <h3>Preview (512x512)</h3>
+                <canvas id="preview-canvas" width="512" height="512"></canvas>
+                <div class="loading-overlay hidden">
+                    <div class="spinner"></div>
+                    <span>Processing...</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Action Buttons -->
+        <div class="actions">
+            <button id="merge-btn">Merge & Download</button>
+        </div>
+    </div>
+    <script src="script.js"></script>
+</body>
+</html>

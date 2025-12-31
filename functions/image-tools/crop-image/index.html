@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Image Multi-Region Selection Tool</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="container">
+        <h1>Image Multi-Region Selection Tool</h1>
+        <p class="instructions">
+            Drag and drop an image below, then hold <code>Ctrl</code> (or <code>Cmd</code> on Mac) and drag the mouse to create selections.
+        </p>
+
+        <div id="drop-zone">
+            <p id="drop-zone-text">Drag and drop an image file here</p>
+            <div id="image-container">
+                <img id="uploaded-image" src="" alt="Uploaded Image">
+            </div>
+        </div>
+
+        <div class="controls">
+            <button id="clear-button">Remove All Selections</button>
+            <button id="export-button" disabled>Export All Selections</button>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>

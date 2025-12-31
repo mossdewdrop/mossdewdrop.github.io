@@ -1,0 +1,144 @@
+body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    background-color: #f0f2f5;
+    color: #333;
+    display: flex;
+    justify-content: center;
+    align-items: flex-start;
+    min-height: 100vh;
+    margin: 0;
+    padding: 20px;
+    box-sizing: border-box;
+}
+
+.container {
+    width: 100%;
+    max-width: 900px;
+    text-align: center;
+    background-color: #fff;
+    padding: 20px 30px;
+    border-radius: 8px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+}
+
+.instructions code {
+    background-color: #e2e2e2;
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-family: monospace;
+}
+
+#drop-zone {
+    border: 2px dashed #ccc;
+    border-radius: 8px;
+    padding: 20px;
+    margin-top: 20px;
+    transition: border-color 0.3s, background-color 0.3s;
+    min-height: 200px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    position: relative;
+}
+
+#drop-zone.drag-over {
+    border-color: #007bff;
+    background-color: #f0f8ff;
+}
+
+#drop-zone-text {
+    color: #888;
+    font-size: 1.2em;
+}
+
+#image-container {
+    position: relative; /* Key: Provide positioning anchor for selection boxes */
+    line-height: 0; /* Eliminate gap below the image */
+}
+
+#uploaded-image {
+    max-width: 100%;
+    display: none; /* Initially hidden */
+    user-select: none; /* Prevent dragging the image itself */
+}
+
+.selection-box {
+    position: absolute;
+    border: 2px solid #007bff;
+    background-color: rgba(0, 123, 255, 0.2);
+    box-sizing: border-box;
+    pointer-events: none; /* Allow mouse events to pass through to the layer below */
+}
+
+.selection-box .delete-btn {
+    position: absolute;
+    top: -10px;
+    right: -10px;
+
+    /* --- Ensure perfect circle --- */
+    width: 22px;          /* Set a fixed width */
+    height: 22px;         /* Set a strictly equal height */
+    padding: 0;           /* [Key Fix 1] Remove all padding */
+    box-sizing: border-box; /* [Key Fix 2] Ensure border doesn't expand the element */
+    border-radius: 50%;   /* Turn square into circle */
+
+    /* --- Centering the internal '×' --- */
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    /* --- Visual Styles --- */
+    background-color: #dc3545;
+    color: white;
+    border: 2px solid white; /* Use a slightly thicker border for better visual effect */
+    box-shadow: 0 1px 3px rgba(0,0,0,0.3);
+    font-size: 16px;
+    font-weight: bold;
+    line-height: 1; /* Ensure line height doesn't affect vertical centering */
+    
+    /* --- Interaction --- */
+    cursor: pointer;
+    pointer-events: all;
+    transition: transform 0.2s ease, background-color 0.2s ease;
+}
+
+.selection-box .delete-btn:hover {
+    background-color: #c82333;
+    transform: scale(1.15); /* Slightly increase hover effect */
+}
+
+.controls {
+    margin-top: 20px;
+}
+
+button {
+    padding: 10px 20px;
+    font-size: 16px;
+    cursor: pointer;
+    border: none;
+    border-radius: 5px;
+    margin: 0 10px;
+    transition: background-color 0.3s, opacity 0.3s;
+}
+
+#clear-button {
+    background-color: #6c757d;
+    color: white;
+}
+#clear-button:hover {
+    background-color: #5a6268;
+}
+
+#export-button {
+    background-color: #28a745;
+    color: white;
+}
+#export-button:hover {
+    background-color: #218838;
+}
+
+#export-button:disabled {
+    background-color: #cccccc;
+    cursor: not-allowed;
+    opacity: 0.7;
+}

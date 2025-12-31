@@ -1,0 +1,465 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Image Transparent Boundary Color Fill Tool (Fix Alpha)</title>
+    <!-- Import Pako (Zlib library) and UPNG.js (PNG encoding library) to preserve RGB values in transparent areas -->
+    <script src="https://unpkg.com/pako@2.1.0/dist/pako.min.js"></script>
+    <script src="https://unpkg.com/upng-js@2.1.0/UPNG.js"></script>
+
+
+    <style>
+        :root {
+            --bg-color: #1e1e1e;
+            --panel-color: #2d2d2d;
+            --text-color: #e0e0e0;
+            --accent-color: #4a90e2;
+            --border-color: #444;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+            padding: 20px;
+        }
+
+        h1 {
+            font-size: 1.5rem;
+            margin-bottom: 20px;
+            font-weight: 300;
+        }
+
+        .container {
+            background-color: var(--panel-color);
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+            width: 100%;
+            max-width: 800px;
+        }
+
+        /* Drag and Drop Area & Canvas Container */
+        .canvas-wrapper {
+            position: relative;
+            width: 100%;
+            min-height: 300px;
+            max-height: 60vh;
+            border: 2px dashed var(--border-color);
+            border-radius: 4px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            overflow: auto;
+            background-color: #333;
+        }
+
+        /* Checkerboard Background (Indicates Transparency) */
+        .checkerboard {
+            background-image: 
+                linear-gradient(45deg, #444 25%, transparent 25%), 
+                linear-gradient(-45deg, #444 25%, transparent 25%), 
+                linear-gradient(45deg, transparent 75%, #444 75%), 
+                linear-gradient(-45deg, transparent 75%, #444 75%);
+            background-size: 20px 20px;
+            background-position: 0 0, 0 10px, 10px -10px, -10px 0px;
+        }
+
+        .canvas-wrapper.drag-over {
+            border-color: var(--accent-color);
+            background-color: #333344;
+        }
+
+        canvas {
+            max-width: 100%;
+            height: auto;
+            display: block;
+        }
+
+        .placeholder-text {
+            pointer-events: none;
+            color: #888;
+        }
+
+        /* Control Bar */
+        .controls {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            flex-wrap: wrap;
+        }
+
+        .control-group {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            flex: 1;
+        }
+
+        label {
+            white-space: nowrap;
+            font-size: 0.9rem;
+        }
+
+        input[type=range] {
+            flex: 1;
+            cursor: pointer;
+        }
+
+        /* Button Styles */
+        button {
+            padding: 8px 16px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 0.9rem;
+            transition: background 0.2s;
+            font-weight: bold;
+        }
+
+        .btn-primary {
+            background-color: var(--accent-color);
+            color: white;
+        }
+        .btn-primary:hover {
+            background-color: #357abd;
+        }
+        .btn-primary:disabled {
+            background-color: #555;
+            cursor: not-allowed;
+        }
+
+        .btn-toggle {
+            background-color: #555;
+            color: white;
+            width: 40px;
+            text-align: center;
+            padding: 8px 0;
+        }
+        .btn-toggle.active {
+            background-color: #4caf50;
+        }
+        .btn-toggle.inactive {
+            background-color: #e53935;
+        }
+
+        .btn-save {
+            background-color: #4caf50;
+            color: white;
+            width: 100%;
+            margin-top: 10px;
+            display: none;
+        }
+        .btn-save:hover {
+            background-color: #43a047;
+        }
+
+        .status {
+            font-size: 0.8rem;
+            color: #aaa;
+            margin-left: auto;
+        }
+    </style>
+</head>
+<body>
+
+    <h1>Image Transparent Area Color Fill Tool (Preserve RGB)</h1>
+
+    <div class="container">
+        <!-- Canvas Area -->
+        <div class="canvas-wrapper checkerboard" id="dropZone">
+            <span class="placeholder-text">Drag and drop image here</span>
+            <canvas id="mainCanvas" style="display:none;"></canvas>
+        </div>
+
+        <!-- Top Control Bar -->
+        <div class="controls">
+            <!-- Fill Button -->
+            <button id="btnFill" class="btn-primary" disabled>Fill</button>
+            
+            <!-- Threshold Control -->
+            <div class="control-group">
+                <label for="thresholdRange" title="Alpha threshold for opaque pixels">Threshold: <span id="thresholdVal">10</span></label>
+                <input type="range" id="thresholdRange" min="1" max="254" value="10">
+            </div>
+
+            <!-- Alpha Toggle Switch -->
+            <button id="btnToggleAlpha" class="btn-toggle active" title="Toggle Alpha Preview (A)">A</button>
+
+            <span class="status" id="statusText"></span>
+        </div>
+
+        <!-- Save Button -->
+        <button id="btnSave" class="btn-save">Save Image</button>
+    </div>
+
+    <script>
+        const dropZone = document.getElementById('dropZone');
+        const canvas = document.getElementById('mainCanvas');
+        const ctx = canvas.getContext('2d', { willReadFrequently: true });
+        const placeholder = document.querySelector('.placeholder-text');
+        
+        const btnFill = document.getElementById('btnFill');
+        const btnToggleAlpha = document.getElementById('btnToggleAlpha');
+        const btnSave = document.getElementById('btnSave');
+        const rangeThreshold = document.getElementById('thresholdRange');
+        const lblThreshold = document.getElementById('thresholdVal');
+        const statusText = document.getElementById('statusText');
+
+        let originalFile = null;
+        let originalImageData = null; // Original image data
+        let processedRGBData = null;  // Processed RGB data (Alpha set to 255 for calculation)
+        let originalAlphaChannel = null; // Save original Alpha channel separately
+        let isAlphaPreviewOn = true;  // Preview state
+        let isProcessed = false;
+
+        // --- Event Listeners ---
+
+        rangeThreshold.addEventListener('input', (e) => {
+            lblThreshold.textContent = e.target.value;
+        });
+
+        dropZone.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            dropZone.classList.add('drag-over');
+        });
+        dropZone.addEventListener('dragleave', () => dropZone.classList.remove('drag-over'));
+        dropZone.addEventListener('drop', (e) => {
+            e.preventDefault();
+            dropZone.classList.remove('drag-over');
+            const file = e.dataTransfer.files[0];
+            if (file && file.type.startsWith('image/')) {
+                handleImageLoad(file);
+            }
+        });
+
+        btnFill.addEventListener('click', () => {
+            if (!originalImageData) return;
+            statusText.textContent = "Processing...";
+            // Delay to render UI
+            setTimeout(() => {
+                processImage();
+                statusText.textContent = "Processing Complete";
+            }, 50);
+        });
+
+        btnToggleAlpha.addEventListener('click', () => {
+            isAlphaPreviewOn = !isAlphaPreviewOn;
+            updateAlphaButtonState();
+            renderPreview();
+        });
+
+        function updateAlphaButtonState() {
+            if (isAlphaPreviewOn) {
+                btnToggleAlpha.classList.add('active');
+                btnToggleAlpha.classList.remove('inactive');
+            } else {
+                btnToggleAlpha.classList.remove('active');
+                btnToggleAlpha.classList.add('inactive');
+            }
+        }
+
+        btnSave.addEventListener('click', saveImage);
+
+        // --- Core Logic ---
+
+        function handleImageLoad(file) {
+            originalFile = file;
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                const img = new Image();
+                img.onload = () => {
+                    canvas.width = img.width;
+                    canvas.height = img.height;
+                    placeholder.style.display = 'none';
+                    canvas.style.display = 'block';
+                    btnSave.style.display = 'none';
+                    isProcessed = false;
+                    statusText.textContent = "";
+
+                    ctx.clearRect(0, 0, canvas.width, canvas.height);
+                    ctx.drawImage(img, 0, 0);
+
+                    originalImageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+                    
+                    // Extract original Alpha channel
+                    const len = originalImageData.data.length;
+                    originalAlphaChannel = new Uint8Array(len / 4);
+                    for (let i = 0; i < len; i += 4) {
+                        originalAlphaChannel[i / 4] = originalImageData.data[i + 3];
+                    }
+
+                    processedRGBData = null; 
+                    isAlphaPreviewOn = true;
+                    updateAlphaButtonState();
+                    
+                    btnFill.disabled = false;
+                };
+                img.src = e.target.result;
+            };
+            reader.readAsDataURL(file);
+        }
+
+        function processImage() {
+            const width = canvas.width;
+            const height = canvas.height;
+            const srcData = originalImageData.data;
+            const len = srcData.length;
+            const threshold = parseInt(rangeThreshold.value, 10);
+
+            // resultData will contain the filled RGB, Alpha temporarily set to 255 to mark as processed
+            const resultData = new Uint8ClampedArray(srcData);
+            
+            let currentQueue = [];
+            let nextQueue = [];
+            const visited = new Uint8Array(width * height);
+
+            for (let i = 0; i < len; i += 4) {
+                const alpha = srcData[i + 3];
+                const pixelIndex = i / 4;
+                
+                if (alpha >= threshold) {
+                    visited[pixelIndex] = 1;
+                    currentQueue.push(pixelIndex);
+                } else {
+                    visited[pixelIndex] = 0;
+                }
+            }
+
+            if (currentQueue.length === 0 || currentQueue.length === width * height) {
+                processedRGBData = resultData; 
+                isProcessed = true;
+                renderPreview();
+                btnSave.style.display = 'block';
+                return;
+            }
+
+            const offsets = [-width, width, -1, 1];
+
+            while (currentQueue.length > 0) {
+                for (let i = 0; i < currentQueue.length; i++) {
+                    const idx = currentQueue[i];
+                    const r = resultData[idx * 4];
+                    const g = resultData[idx * 4 + 1];
+                    const b = resultData[idx * 4 + 2];
+                    const cx = idx % width;
+
+                    for (let j = 0; j < 4; j++) {
+                        const offset = offsets[j];
+                        const neighborIdx = idx + offset;
+
+                        if (neighborIdx < 0 || neighborIdx >= width * height) continue;
+                        if (offset === 1 && cx === width - 1) continue;
+                        if (offset === -1 && cx === 0) continue;
+
+                        if (visited[neighborIdx] === 0) {
+                            resultData[neighborIdx * 4] = r;
+                            resultData[neighborIdx * 4 + 1] = g;
+                            resultData[neighborIdx * 4 + 2] = b;
+                            resultData[neighborIdx * 4 + 3] = 255; 
+
+                            visited[neighborIdx] = 1;
+                            nextQueue.push(neighborIdx);
+                        }
+                    }
+                }
+                currentQueue = nextQueue;
+                nextQueue = [];
+            }
+
+            processedRGBData = resultData;
+            isProcessed = true;
+            renderPreview();
+            btnSave.style.display = 'block';
+        }
+
+        function renderPreview() {
+            if (!isProcessed || !processedRGBData) return;
+
+            const displayData = new Uint8ClampedArray(processedRGBData);
+            const len = displayData.length;
+
+            if (isAlphaPreviewOn) {
+                for (let i = 0; i < len; i += 4) {
+                    displayData[i + 3] = originalAlphaChannel[i / 4];
+                }
+            } else {
+                for (let i = 0; i < len; i += 4) {
+                    displayData[i + 3] = 255;
+                }
+            }
+
+            const imgData = new ImageData(displayData, canvas.width, canvas.height);
+            ctx.putImageData(imgData, 0, 0);
+        }
+
+        /**
+         * Fixed Save Function:
+         * Use UPNG.js to encode RGBA binary data directly.
+         * This bypasses the default browser canvas.toDataURL() behavior of clearing RGB in transparent pixels.
+         */
+        function saveImage() {
+            if (!isProcessed || !processedRGBData) return;
+            if (typeof UPNG === 'undefined') {
+                alert("Error: Failed to load dependency libraries. Please check your network connection to unpkg.com");
+                return;
+            }
+
+            statusText.textContent = "Generating file...";
+
+            // Use requestAnimationFrame to avoid UI lag
+            requestAnimationFrame(() => {
+                const width = canvas.width;
+                const height = canvas.height;
+                const len = processedRGBData.length;
+
+                // Construct final data: Filled RGB + Original Alpha
+                // Must pass Uint8Array to UPNG (Uint8ClampedArray buffer also works)
+                // Here we modify a copy of the ArrayBuffer directly
+                const finalBuffer = new Uint8Array(len);
+                
+                for (let i = 0; i < len; i += 4) {
+                    finalBuffer[i] = processedRGBData[i];     // R
+                    finalBuffer[i+1] = processedRGBData[i+1]; // G
+                    finalBuffer[i+2] = processedRGBData[i+2]; // B
+                    // Key: Write original Alpha here (may be 0), but RGB already has color
+                    finalBuffer[i+3] = originalAlphaChannel[i / 4]; 
+                }
+
+                // Encode as PNG
+                // Params: buffers, width, height, colors(0=lossless)
+                // UPNG.encode returns ArrayBuffer
+                const pngArrayBuffer = UPNG.encode([finalBuffer.buffer], width, height, 0);
+
+                // Generate Blob and download
+                const blob = new Blob([pngArrayBuffer], {type: "image/png"});
+                
+                let fileName = "image_Fill.png";
+                if (originalFile && originalFile.name) {
+                    const parts = originalFile.name.split('.');
+                    if (parts.length > 1) parts.pop();
+                    fileName = parts.join('.') + "_Fill.png";
+                }
+
+                const link = document.createElement('a');
+                link.download = fileName;
+                link.href = URL.createObjectURL(blob);
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+                
+                statusText.textContent = "Save Successful";
+            });
+        }
+    </script>
+</body>
+</html>

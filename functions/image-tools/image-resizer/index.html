@@ -1,0 +1,444 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Batch Image Resizer</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+    <style>
+        :root {
+            --primary-color: #007bff;
+            --secondary-color: #6c757d;
+            --background-color: #f8f9fa;
+            --border-color: #dee2e6;
+            --text-color: #333;
+            --light-bg: #fff;
+            --danger-color: #dc3545;
+        }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: var(--background-color);
+            color: var(--text-color);
+            display: flex;
+            justify-content: center;
+            align-items: flex-start;
+            min-height: 100vh;
+        }
+        .container {
+            display: flex;
+            gap: 20px;
+            width: 100%;
+            max-width: 1200px;
+        }
+        .main-content {
+            flex: 3;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+        .sidebar {
+            flex: 1;
+            min-width: 280px;
+            background-color: var(--light-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 20px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+        }
+        #drop-zone {
+            border: 2px dashed var(--border-color);
+            border-radius: 8px;
+            padding: 40px;
+            text-align: center;
+            color: var(--secondary-color);
+            background-color: var(--light-bg);
+            transition: background-color 0.2s, border-color 0.2s;
+            cursor: pointer;
+        }
+        #drop-zone.drag-over {
+            background-color: #e9ecef;
+            border-color: var(--primary-color);
+        }
+        #file-list-container {
+            background-color: var(--light-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 10px;
+            min-height: 200px;
+            max-height: 60vh;
+            overflow-y: auto;
+        }
+        #file-list {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+        }
+        .file-item {
+            display: flex;
+            align-items: center;
+            padding: 10px;
+            border-bottom: 1px solid var(--border-color);
+            transition: background-color 0.2s;
+        }
+        .file-item:last-child {
+            border-bottom: none;
+        }
+        .file-item:hover {
+            background-color: #f1f3f5;
+        }
+        .file-preview {
+            width: 40px;
+            height: 40px;
+            object-fit: cover;
+            border-radius: 4px;
+            margin-right: 15px;
+        }
+        .file-name {
+            flex-grow: 1;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            font-size: 14px;
+        }
+        .remove-btn {
+            background: none;
+            border: 1px solid var(--danger-color);
+            color: var(--danger-color);
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            cursor: pointer;
+            font-weight: bold;
+            line-height: 22px;
+            text-align: center;
+            padding: 0;
+            transition: background-color 0.2s, color 0.2s;
+        }
+        .remove-btn:hover {
+            background-color: var(--danger-color);
+            color: white;
+        }
+        .settings-group {
+            margin-bottom: 25px;
+        }
+        .settings-group h3 {
+            margin-top: 0;
+            margin-bottom: 15px;
+            font-size: 16px;
+            border-bottom: 1px solid var(--border-color);
+            padding-bottom: 8px;
+        }
+        .toggle-options, .radio-options {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+        .toggle-options label, .radio-options label {
+            display: flex;
+            align-items: center;
+            cursor: pointer;
+            font-size: 14px;
+        }
+        .custom-res-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 10px;
+        }
+        .custom-res-item input {
+            flex-grow: 1;
+            padding: 5px 8px;
+            border: 1px solid var(--border-color);
+            border-radius: 4px;
+        }
+        #add-custom-res-btn {
+            background-color: var(--primary-color);
+            color: white;
+            border: none;
+            border-radius: 50%;
+            width: 28px;
+            height: 28px;
+            font-size: 18px;
+            cursor: pointer;
+            line-height: 28px;
+        }
+        #download-btn {
+            width: 100%;
+            padding: 12px;
+            font-size: 16px;
+            font-weight: bold;
+            background-color: #28a745;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+        #download-btn:disabled {
+            background-color: var(--secondary-color);
+            cursor: not-allowed;
+        }
+        #download-btn:not(:disabled):hover {
+            background-color: #218838;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <div class="main-content">
+            <div id="drop-zone">
+                <p>Drag and drop images here, or click to select files</p>
+                <input type="file" id="file-input" multiple accept="image/*" style="display: none;">
+            </div>
+            <div id="file-list-container">
+                <ul id="file-list">
+                    <!-- File list items will be added dynamically via JS -->
+                </ul>
+            </div>
+        </div>
+        <div class="sidebar">
+            <div class="settings-group">
+                <h3>Target Resolutions</h3>
+                <div class="toggle-options">
+                    <label><input type="checkbox" value="64"> 64</label>
+                    <label><input type="checkbox" value="128"> 128</label>
+                    <label><input type="checkbox" value="256" checked> 256</label>
+                    <label><input type="checkbox" value="512" checked> 512</label>
+                    <label><input type="checkbox" value="1024" checked> 1024</label>
+                    <label><input type="checkbox" value="2048"> 2048</label>
+                    <label><input type="checkbox" value="4096"> 4096</label>
+                </div>
+            </div>
+
+            <div class="settings-group">
+                <h3>Custom Resolutions</h3>
+                <div id="custom-res-list">
+                    <!-- Custom resolution items will be added dynamically via JS -->
+                </div>
+                <button id="add-custom-res-btn">+</button>
+            </div>
+
+            <div class="settings-group">
+                <h3>Scaling Mode</h3>
+                <div class="radio-options">
+                    <label><input type="radio" name="scale-mode" value="longest" checked> Match Longest Side</label>
+                    <label><input type="radio" name="scale-mode" value="shortest"> Match Shortest Side</label>
+                    <label><input type="radio" name="scale-mode" value="width"> Match Width</label>
+                    <label><input type="radio" name="scale-mode" value="height"> Match Height</label>
+                </div>
+            </div>
+
+            <button id="download-btn" disabled>Process and Download</button>
+        </div>
+    </div>
+
+    <script>
+        const dropZone = document.getElementById('drop-zone');
+        const fileInput = document.getElementById('file-input');
+        const fileList = document.getElementById('file-list');
+        const addCustomResBtn = document.getElementById('add-custom-res-btn');
+        const customResList = document.getElementById('custom-res-list');
+        const downloadBtn = document.getElementById('download-btn');
+
+        let uploadedFiles = new Map(); // Use Map to store files for easier management
+
+        // --- Drag and drop and file selection event handling ---
+        dropZone.addEventListener('click', () => fileInput.click());
+        fileInput.addEventListener('change', (e) => handleFiles(e.target.files));
+
+        dropZone.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            dropZone.classList.add('drag-over');
+        });
+        dropZone.addEventListener('dragleave', (e) => {
+            e.preventDefault();
+            dropZone.classList.remove('drag-over');
+        });
+        dropZone.addEventListener('drop', (e) => {
+            e.preventDefault();
+            dropZone.classList.remove('drag-over');
+            handleFiles(e.dataTransfer.files);
+        });
+
+        function handleFiles(files) {
+            for (const file of files) {
+                if (!file.type.startsWith('image/')) continue;
+                
+                const fileId = `${file.name}-${file.lastModified}-${file.size}`;
+                if (uploadedFiles.has(fileId)) continue; // Avoid duplicate additions
+
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    const fileData = {
+                        id: fileId,
+                        file: file,
+                        previewUrl: e.target.result
+                    };
+                    uploadedFiles.set(fileId, fileData);
+                    addFileToUI(fileData);
+                    updateDownloadButtonState();
+                };
+                reader.readAsDataURL(file);
+            }
+        }
+
+        function addFileToUI({ id, file, previewUrl }) {
+            const li = document.createElement('li');
+            li.className = 'file-item';
+            li.dataset.id = id;
+            
+            li.innerHTML = `
+                <img src="${previewUrl}" alt="preview" class="file-preview">
+                <span class="file-name" title="${file.name}">${file.name}</span>
+                <button class="remove-btn" title="Remove">-</button>
+            `;
+
+            li.querySelector('.remove-btn').addEventListener('click', () => {
+                uploadedFiles.delete(id);
+                li.remove();
+                updateDownloadButtonState();
+            });
+
+            fileList.appendChild(li);
+        }
+
+        function updateDownloadButtonState() {
+            downloadBtn.disabled = uploadedFiles.size === 0;
+        }
+
+        // --- Custom resolution handling ---
+        addCustomResBtn.addEventListener('click', () => {
+            const item = document.createElement('div');
+            item.className = 'custom-res-item';
+            item.innerHTML = `
+                <input type="number" placeholder="Enter pixel value" min="1">
+                <button class="remove-btn">-</button>
+            `;
+            item.querySelector('.remove-btn').addEventListener('click', () => item.remove());
+            customResList.appendChild(item);
+        });
+
+        // --- Download handling ---
+        downloadBtn.addEventListener('click', async () => {
+            downloadBtn.disabled = true;
+            downloadBtn.textContent = 'Processing...';
+
+            const resolutions = getSelectedResolutions();
+            const scaleMode = document.querySelector('input[name="scale-mode"]:checked').value;
+
+            if (resolutions.length === 0) {
+                alert('Please select or customize at least one target resolution!');
+                updateDownloadButtonState();
+                downloadBtn.textContent = 'Process and Download';
+                return;
+            }
+
+            const zip = new JSZip();
+            const processingPromises = [];
+
+            for (const fileData of uploadedFiles.values()) {
+                for (const res of resolutions) {
+                    const promise = resizeImage(fileData.file, res, scaleMode)
+                        .then(({ blob, newName }) => {
+                            zip.file(newName, blob);
+                        });
+                    processingPromises.push(promise);
+                }
+            }
+
+            await Promise.all(processingPromises);
+
+            zip.generateAsync({ type: 'blob' }).then(content => {
+                const link = document.createElement('a');
+                link.href = URL.createObjectURL(content);
+                link.download = `resized-images-${Date.now()}.zip`;
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+                URL.revokeObjectURL(link.href);
+            });
+
+            downloadBtn.textContent = 'Process and Download';
+            updateDownloadButtonState();
+        });
+
+        function getSelectedResolutions() {
+            const resolutions = new Set();
+            // Get preset resolutions
+            document.querySelectorAll('.toggle-options input:checked').forEach(input => {
+                resolutions.add(parseInt(input.value, 10));
+            });
+            // Get custom resolutions
+            document.querySelectorAll('#custom-res-list input').forEach(input => {
+                const val = parseInt(input.value, 10);
+                if (val > 0) resolutions.add(val);
+            });
+            return Array.from(resolutions);
+        }
+
+        function resizeImage(file, targetSize, mode) {
+            return new Promise((resolve, reject) => {
+                const img = new Image();
+                const reader = new FileReader();
+
+                reader.onload = (e) => {
+                    img.onload = () => {
+                        const canvas = document.createElement('canvas');
+                        const ctx = canvas.getContext('2d');
+                        
+                        const w = img.width;
+                        const h = img.height;
+                        let newW, newH;
+
+                        switch(mode) {
+                            case 'longest':
+                                if (w > h) {
+                                    newW = targetSize;
+                                    newH = (h * targetSize) / w;
+                                } else {
+                                    newH = targetSize;
+                                    newW = (w * targetSize) / h;
+                                }
+                                break;
+                            case 'shortest':
+                                 if (w < h) {
+                                    newW = targetSize;
+                                    newH = (h * targetSize) / w;
+                                } else {
+                                    newH = targetSize;
+                                    newW = (w * targetSize) / h;
+                                }
+                                break;
+                            case 'width':
+                                newW = targetSize;
+                                newH = (h * targetSize) / w;
+                                break;
+                            case 'height':
+                                newH = targetSize;
+                                newW = (w * targetSize) / h;
+                                break;
+                        }
+
+                        canvas.width = Math.round(newW);
+                        canvas.height = Math.round(newH);
+                        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+
+                        canvas.toBlob(blob => {
+                            const originalName = file.name.substring(0, file.name.lastIndexOf('.'));
+                            const newName = `${originalName}@${targetSize}.png`;
+                            resolve({ blob, newName });
+                        }, 'image/png');
+                    };
+                    img.src = e.target.result;
+                };
+                reader.onerror = reject;
+                reader.readAsDataURL(file);
+            });
+        }
+
+    </script>
+</body>
+</html>

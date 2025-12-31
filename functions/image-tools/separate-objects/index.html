@@ -1,0 +1,509 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Image Separation Tool v3.0</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+    <!-- <script src="../../utils/jszip.min.js"></script> -->
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            background-color: #f0f2f5;
+            margin: 0;
+            padding: 20px;
+            color: #333;
+        }
+
+        h1 {
+            color: #1a1a1a;
+        }
+
+        /* NEW: Instructions Box Style */
+        .instructions {
+            width: 80vw;
+            max-width: 800px;
+            margin-bottom: 20px;
+            padding: 15px;
+            background-color: #e9ecef;
+            border-left: 5px solid #007bff;
+            border-radius: 5px;
+            font-size: 15px;
+        }
+        /* MODIFIED: Add style for summary element */
+        .instructions summary {
+            cursor: pointer;
+        }
+        .instructions h3 {
+            margin-top: 0;
+            color: #0056b3;
+            display: inline; /* Make h3 inline to align with the default arrow */
+        }
+        .instructions ol {
+            padding-left: 25px;
+            margin: 10px 0 0 0; /* Add some top margin when expanded */
+        }
+        .instructions li {
+            margin-bottom: 8px;
+        }
+        .instructions li:last-child {
+            margin-bottom: 0;
+        }
+        .instructions code {
+            background-color: #d1d5db;
+            padding: 2px 4px;
+            border-radius: 3px;
+        }
+
+        .controls {
+            margin-bottom: 20px;
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+
+        button {
+            padding: 10px 15px;
+            border: none;
+            border-radius: 5px;
+            background-color: #007bff;
+            color: white;
+            cursor: pointer;
+            font-size: 16px;
+            transition: background-color 0.2s, opacity 0.2s;
+        }
+
+        button:hover {
+            background-color: #0056b3;
+        }
+
+        button:disabled {
+            background-color: #cccccc;
+            cursor: not-allowed;
+            opacity: 0.7;
+        }
+
+        .btn-danger {
+            background-color: #dc3545;
+        }
+        .btn-danger:hover {
+            background-color: #c82333;
+        }
+
+        #drop-zone {
+            width: 80vw;
+            max-width: 800px;
+            height: 50vh;
+            border: 3px dashed #cccccc;
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            position: relative;
+            background-color: #fafafa;
+            transition: border-color 0.3s, background-color 0.3s, height 0.3s ease-in-out; /* MODIFIED: Added height transition */
+            background-image:
+                linear-gradient(45deg, #e0e0e0 25%, transparent 25%),
+                linear-gradient(-45deg, #e0e0e0 25%, transparent 25%),
+                linear-gradient(45deg, transparent 75%, #e0e0e0 75%),
+                linear-gradient(-45deg, transparent 75%, #e0e0e0 75%);
+            background-size: 20px 20px;
+            background-position: 0 0, 0 10px, 10px -10px, -10px 0px;
+        }
+
+        #drop-zone.drag-over {
+            border-color: #007bff;
+            background-color: #e6f7ff;
+        }
+
+        /* --- MODIFICATION START --- */
+        #drop-zone.has-image {
+            height: auto; /* Allow height to fit the content */
+            border-style: solid;
+            border-color: #adb5bd;
+            padding: 10px;
+            background-image: none; /* Remove checkerboard background when image is present */
+            background-color: #e9ecef; /* A light background for the padded area */
+        }
+        /* --- MODIFICATION END --- */
+        
+        #drop-zone-text {
+            color: #888888;
+            font-size: 18px;
+            pointer-events: none;
+        }
+
+        #drop-zone.has-image #drop-zone-text {
+            display: none;
+        }
+        
+        #image-container {
+            position: relative;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            max-width: 100%;
+            max-height: 100%;
+        }
+
+        #canvas {
+            display: none;
+            max-width: 100%;
+            max-height: 100%;
+            /* MODIFIED: Removed object-fit as it's not applicable to canvas */
+        }
+
+        #overlay {
+            position: absolute;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+        }
+
+        .bbox {
+            position: absolute;
+            border: 2px solid red;
+            box-sizing: border-box;
+            cursor: pointer;
+        }
+
+        .bbox.selected {
+            border-color: #00ff00;
+            background-color: rgba(0, 255, 0, 0.2);
+        }
+
+        .bbox-delete {
+            position: absolute;
+            top: -10px;
+            right: -10px;
+            width: 20px;
+            height: 20px;
+            background-color: red;
+            color: white;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            cursor: pointer;
+            font-family: monospace;
+            z-index: 10;
+        }
+        .bbox-delete:hover {
+            background-color: darkred;
+        }
+    </style>
+</head>
+<body>
+
+    <h1>Image Separation Tool v3.0</h1>
+    <p>Separate an image containing multiple opaque regions into independent image files.</p>
+
+    <!-- NEW: Instructions Box HTML -->
+    <!-- MODIFIED: Changed div to details/summary for collapse functionality -->
+    <details class="instructions">
+        <summary>
+            <h3>Instructions</h3>
+        </summary>
+        <ol>
+            <li><strong>Upload Image:</strong> Drag an image into the area below, or click to select a file.</li>
+            <li><strong>Analyze Image:</strong> Click the [1. Analyze Image] button to automatically mark all independent regions.</li>
+            <li><strong>Manage Regions:</strong>
+                <ul>
+                    <li>Click the 'x' in the top-right corner of a box to delete that region.</li>
+                    <li>Hold <code>Ctrl</code> (or <code>Command</code> on Mac) and click multiple boxes to select them.</li>
+                    <li>After selecting multiple boxes, click the [2. Merge Selected Regions] button.</li>
+                </ul>
+            </li>
+            <li><strong>Export Files:</strong> Click [3. Export All Regions] to download all marked regions as a .zip file.</li>
+            <li><strong>Restart:</strong> Click [Clear & Reset] to clear the current image.</li>
+        </ol>
+    </details>
+
+    <div class="controls">
+        <button id="process-btn" disabled>1. Analyze Image</button>
+        <button id="merge-btn" disabled>2. Merge Selected Regions</button>
+        <button id="export-btn" disabled>3. Export All Regions</button>
+        <button id="clear-btn" class="btn-danger" style="display: none;">Clear & Reset</button>
+    </div>
+
+    <div id="drop-zone">
+        <p id="drop-zone-text">Drag & drop an image here, or click to select a file</p>
+        <input type="file" id="file-input" accept="image/*" style="display: none;">
+        <div id="image-container">
+            <canvas id="canvas"></canvas>
+            <div id="overlay"></div>
+        </div>
+    </div>
+    
+    <script>
+        // --- DOM Element Selection ---
+        const dropZone = document.getElementById('drop-zone');
+        const fileInput = document.getElementById('file-input');
+        const canvas = document.getElementById('canvas');
+        // MODIFIED: Added { willReadFrequently: true } to optimize getImageData calls
+        const ctx = canvas.getContext('2d', { willReadFrequently: true });
+        const imageContainer = document.getElementById('image-container');
+        const overlay = document.getElementById('overlay');
+        const processBtn = document.getElementById('process-btn');
+        const mergeBtn = document.getElementById('merge-btn');
+        const exportBtn = document.getElementById('export-btn');
+        const clearBtn = document.getElementById('clear-btn');
+
+        // --- State Variables ---
+        let originalImage = null;
+        let originalFileName = '';
+        let components = []; 
+
+        // --- Event Listeners ---
+        dropZone.addEventListener('dragover', (e) => { e.preventDefault(); dropZone.classList.add('drag-over'); });
+        dropZone.addEventListener('dragleave', () => dropZone.classList.remove('drag-over'));
+        dropZone.addEventListener('drop', (e) => {
+            e.preventDefault();
+            dropZone.classList.remove('drag-over');
+            const files = e.dataTransfer.files;
+            if (files.length > 0) handleFile(files[0]);
+        });
+        
+        dropZone.addEventListener('click', () => {
+            if (!originalImage) fileInput.click();
+        });
+        fileInput.addEventListener('change', (e) => {
+            if (e.target.files.length > 0) handleFile(e.target.files[0]);
+        });
+
+        processBtn.addEventListener('click', runAnalysis);
+        mergeBtn.addEventListener('click', mergeSelected);
+        exportBtn.addEventListener('click', exportComponents);
+        clearBtn.addEventListener('click', resetState);
+        window.addEventListener('resize', drawBoundingBoxes);
+
+        // --- Core Functions ---
+        function resetState() {
+            originalImage = null;
+            originalFileName = '';
+            components = [];
+            
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            canvas.style.display = 'none';
+            clearOverlay();
+            
+            dropZone.classList.remove('has-image');
+            
+            processBtn.disabled = true;
+            mergeBtn.disabled = true;
+            exportBtn.disabled = true;
+            clearBtn.style.display = 'none';
+
+            fileInput.value = null;
+        }
+
+        function handleFile(file) {
+            if (!file.type.startsWith('image/')) {
+                alert('Please upload an image file!');
+                return;
+            }
+            resetState();
+
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                originalImage = new Image();
+                originalImage.onload = () => {
+                    canvas.width = originalImage.width;
+                    canvas.height = originalImage.height;
+                    ctx.drawImage(originalImage, 0, 0);
+
+                    canvas.style.display = 'block';
+                    dropZone.classList.add('has-image');
+                    processBtn.disabled = false;
+                    clearBtn.style.display = 'inline-block';
+                };
+                originalImage.src = e.target.result;
+                originalFileName = file.name.split('.').slice(0, -1).join('.') || 'image';
+            };
+            reader.readAsDataURL(file);
+        }
+
+        function runAnalysis() {
+            if (!originalImage) return;
+            
+            console.time('CCA Execution');
+            const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+            const foundComponents = findConnectedComponents(imageData);
+            console.timeEnd('CCA Execution');
+
+            components = foundComponents.map((c, index) => ({ id: index, bbox: c }));
+            drawBoundingBoxes();
+            
+            exportBtn.disabled = components.length === 0;
+        }
+        
+        function findConnectedComponents(imageData) {
+            const width = imageData.width;
+            const height = imageData.height;
+            const data = imageData.data;
+            const visited = new Uint8Array(width * height);
+            const components = [];
+            const alphaThreshold = 10;
+
+            for (let y = 0; y < height; y++) {
+                for (let x = 0; x < width; x++) {
+                    const index = (y * width + x);
+                    if (data[index * 4 + 3] > alphaThreshold && !visited[index]) {
+                        const queue = [[x, y]];
+                        visited[index] = 1;
+                        let minX = x, minY = y, maxX = x, maxY = y;
+
+                        while (queue.length > 0) {
+                            const [cx, cy] = queue.shift();
+                            minX = Math.min(minX, cx); minY = Math.min(minY, cy);
+                            maxX = Math.max(maxX, cx); maxY = Math.max(maxY, cy);
+
+                            for (let dy = -1; dy <= 1; dy++) {
+                                for (let dx = -1; dx <= 1; dx++) {
+                                    if (dx === 0 && dy === 0) continue;
+                                    const nx = cx + dx, ny = cy + dy;
+                                    if (nx >= 0 && nx < width && ny >= 0 && ny < height) {
+                                        const nIndex = ny * width + nx;
+                                        if (data[nIndex * 4 + 3] > alphaThreshold && !visited[nIndex]) {
+                                            visited[nIndex] = 1;
+                                            queue.push([nx, ny]);
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                        components.push({ x: minX, y: minY, w: maxX - minX + 1, h: maxY - minY + 1 });
+                    }
+                }
+            }
+            return components;
+        }
+        
+        function clearOverlay() {
+            overlay.innerHTML = '';
+        }
+        
+        function drawBoundingBoxes() {
+            if (!originalImage) return;
+            clearOverlay();
+            
+            const canvasRect = canvas.getBoundingClientRect();
+            const overlayRect = overlay.getBoundingClientRect();
+
+            const scaleX = canvasRect.width / canvas.width;
+            const scaleY = canvasRect.height / canvas.height;
+            
+            const offsetX = canvasRect.left - overlayRect.left;
+            const offsetY = canvasRect.top - overlayRect.top;
+
+            components.forEach(comp => {
+                const bboxDiv = document.createElement('div');
+                bboxDiv.className = 'bbox';
+                bboxDiv.dataset.id = comp.id;
+                bboxDiv.style.left = `${(comp.bbox.x * scaleX) + offsetX}px`;
+                bboxDiv.style.top = `${(comp.bbox.y * scaleY) + offsetY}px`;
+                bboxDiv.style.width = `${comp.bbox.w * scaleX}px`;
+                bboxDiv.style.height = `${comp.bbox.h * scaleY}px`;
+                bboxDiv.style.pointerEvents = 'auto';
+                
+                const deleteBtn = document.createElement('div');
+                deleteBtn.className = 'bbox-delete';
+                deleteBtn.innerHTML = 'x';
+                deleteBtn.dataset.id = comp.id;
+                
+                deleteBtn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    const idToDelete = parseInt(e.target.dataset.id, 10);
+                    components = components.filter(c => c.id !== idToDelete);
+                    drawBoundingBoxes();
+                    updateMergeButtonState();
+                    exportBtn.disabled = components.length === 0;
+                });
+                
+                bboxDiv.addEventListener('click', (e) => {
+                    if (e.ctrlKey || e.metaKey) {
+                        e.currentTarget.classList.toggle('selected');
+                        updateMergeButtonState();
+                    }
+                });
+
+                bboxDiv.appendChild(deleteBtn);
+                overlay.appendChild(bboxDiv);
+            });
+        }
+        
+        function updateMergeButtonState() {
+            const selectedCount = document.querySelectorAll('.bbox.selected').length;
+            mergeBtn.disabled = selectedCount < 2;
+        }
+        
+        function mergeSelected() {
+            const selectedDivs = document.querySelectorAll('.bbox.selected');
+            if (selectedDivs.length < 2) return;
+            
+            const idsToMerge = Array.from(selectedDivs).map(div => parseInt(div.dataset.id, 10));
+            const componentsToMerge = components.filter(c => idsToMerge.includes(c.id));
+            
+            if (componentsToMerge.length < 2) return;
+            
+            let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+            componentsToMerge.forEach(c => {
+                minX = Math.min(minX, c.bbox.x);
+                minY = Math.min(minY, c.bbox.y);
+                maxX = Math.max(maxX, c.bbox.x + c.bbox.w);
+                maxY = Math.max(maxY, c.bbox.y + c.bbox.h);
+            });
+
+            const newId = (components.length > 0 ? Math.max(...components.map(c => c.id)) : 0) + 1;
+            const mergedComponent = { id: newId, bbox: { x: minX, y: minY, w: maxX - minX, h: maxY - minY } };
+
+            components = components.filter(c => !idsToMerge.includes(c.id));
+            components.push(mergedComponent);
+            
+            drawBoundingBoxes();
+            updateMergeButtonState();
+        }
+
+        async function exportComponents() {
+            if (components.length === 0) return;
+            
+            const zip = new JSZip();
+            const tempCanvas = document.createElement('canvas');
+            const tempCtx = tempCanvas.getContext('2d');
+            
+            for (let i = 0; i < components.length; i++) {
+                const comp = components[i];
+                const { x, y, w, h } = comp.bbox;
+                
+                tempCanvas.width = w;
+                tempCanvas.height = h;
+                
+                const componentImageData = ctx.getImageData(x, y, w, h);
+                tempCtx.putImageData(componentImageData, 0, 0);
+                
+                const blob = await new Promise(resolve => tempCanvas.toBlob(resolve, 'image/png'));
+                zip.file(`${originalFileName}_${i + 1}.png`, blob);
+            }
+            
+            zip.generateAsync({ type: "blob" }).then(content => {
+                const link = document.createElement('a');
+                // MODIFIED: Removed the extra, incorrect call to createObjectURL
+                link.href = URL.createObjectURL(content);
+                link.download = `${originalFileName}_components.zip`;
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+                URL.revokeObjectURL(link.href);
+            });
+        }
+    </script>
+</body>
+</html>

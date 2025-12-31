@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Image to SDF</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="app-wrapper">
+        <!-- File list and drop zone on the left -->
+        <aside class="sidebar">
+            <h2>Images to Process</h2>
+            <div id="drop-zone" class="drop-zone">
+                <p>Drag and drop images here</p>
+            </div>
+            <ul id="file-list" class="file-list">
+                <!-- Pending images will be dynamically added here -->
+            </ul>
+        </aside>
+
+        <!-- Parameters and controls on the right -->
+        <main class="main-content">
+            <h1>SDF (Signed Distance Field) Generator</h1>
+            
+            <div class="controls">
+                <h2>Processing Parameters</h2>
+                <div class="control-group">
+                    <label>
+                        <input type="checkbox" id="invert-input">
+                        Invert Input Image
+                    </label>
+                    <small>Check this if your input is black lines on a white background.</small>
+                </div>
+                
+                <div class="control-group">
+                    <label for="output-resolution">Output Resolution</label>
+                    <select id="output-resolution">
+                        <option value="256">256x256</option>
+                        <option value="512" selected>512x512</option>
+                        <option value="1024">1024x1024</option>
+                        <option value="original">Keep Original Resolution</option>
+                    </select>
+                </div>
+
+                <div class="control-group">
+                    <label for="max-distance">SDF Max Distance (spread)</label>
+                    <input type="range" id="max-distance" min="1" max="128" value="32">
+                    <span id="max-distance-value">32</span>
+                </div>
+            </div>
+
+            <button id="start-btn" class="start-button">Start Processing</button>
+        </main>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>
