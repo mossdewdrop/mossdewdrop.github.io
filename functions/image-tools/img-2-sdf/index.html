@@ -44,8 +44,10 @@
 
                 <div class="control-group">
                     <label for="max-distance">SDF Max Distance (spread)</label>
-                    <input type="range" id="max-distance" min="1" max="128" value="32">
-                    <span id="max-distance-value">32</span>
+                    <div class="range-with-input">
+                        <input type="range" id="max-distance" min="1" max="128" value="32">
+                        <input type="number" id="max-distance-input" min="1" max="128" step="1" value="32">
+                    </div>
                 </div>
             </div>
 

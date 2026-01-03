@@ -5,13 +5,43 @@ document.addEventListener('DOMContentLoaded', () => {
     const invertInput = document.getElementById('invert-input');
     const resolutionSelect = document.getElementById('output-resolution');
     const maxDistSlider = document.getElementById('max-distance');
-    const maxDistValue = document.getElementById('max-distance-value');
+    const maxDistInput = document.getElementById('max-distance-input');
 
     let filesToProcess = [];
 
-    // Update slider display value
+    function clampIntToRange(value, min, max) {
+        const parsed = typeof value === 'number' ? value : parseInt(String(value), 10);
+        if (!Number.isFinite(parsed)) return null;
+        const integer = Math.trunc(parsed);
+        return Math.max(min, Math.min(max, integer));
+    }
+
+    function setMaxDistance(nextValue) {
+        const min = parseInt(maxDistSlider.min, 10);
+        const max = parseInt(maxDistSlider.max, 10);
+        const clamped = clampIntToRange(nextValue, min, max);
+        if (clamped === null) return;
+        maxDistSlider.value = String(clamped);
+        maxDistInput.value = String(clamped);
+    }
+
+    setMaxDistance(maxDistSlider.value);
+
     maxDistSlider.addEventListener('input', () => {
-        maxDistValue.textContent = maxDistSlider.value;
+        setMaxDistance(maxDistSlider.value);
+    });
+
+    maxDistInput.addEventListener('input', () => {
+        if (maxDistInput.value.trim() === '') return;
+        setMaxDistance(maxDistInput.value);
+    });
+
+    maxDistInput.addEventListener('change', () => {
+        if (maxDistInput.value.trim() === '') {
+            setMaxDistance(maxDistSlider.value);
+            return;
+        }
+        setMaxDistance(maxDistInput.value);
     });
 
     // 拖放事件处理

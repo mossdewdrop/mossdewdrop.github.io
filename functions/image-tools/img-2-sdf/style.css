@@ -111,6 +111,24 @@ body, html {
 .control-group label { display: block; margin-bottom: 8px; font-weight: bold; }
 .control-group small { color: #666; }
 
+.range-with-input {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.range-with-input input[type="range"] {
+    flex: 1;
+}
+
+.range-with-input input[type="number"] {
+    width: 96px;
+    padding: 6px 8px;
+    border: 1px solid #ddd;
+    border-radius: 6px;
+    font: inherit;
+}
+
 .start-button {
     display: block;
     width: 100%;
