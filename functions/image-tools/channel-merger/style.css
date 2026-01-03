@@ -137,6 +137,12 @@ body {
     width: 70%;
 }
 
+.invert-toggle {
+    margin-top: 10px;
+    font-size: 0.95em;
+    color: #444;
+}
+
 .output-container {
     display: flex;
     gap: 30px;

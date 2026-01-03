@@ -9,10 +9,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // --- State Management ---
     const channelSources = [
-        { image: null, sourceChannel: 'R', value: 0 },    // Target R
-        { image: null, sourceChannel: 'G', value: 0 },    // Target G
-        { image: null, sourceChannel: 'B', value: 0 },    // Target B
-        { image: null, sourceChannel: 'A', value: 1 }     // Target A
+        { image: null, sourceChannel: 'R', value: 0, invert: false },    // Target R
+        { image: null, sourceChannel: 'G', value: 0, invert: false },    // Target G
+        { image: null, sourceChannel: 'B', value: 0, invert: false },    // Target B
+        { image: null, sourceChannel: 'A', value: 1, invert: false }     // Target A
     ];
 
     const channelMap = { R: 0, G: 1, B: 2, A: 3 };
@@ -20,6 +20,108 @@ document.addEventListener('DOMContentLoaded', () => {
     let previewUpdateTimer;
 
     // --- Main Logic ---
+    const crcTable = (() => {
+        const table = new Uint32Array(256);
+        for (let n = 0; n < 256; n++) {
+            let c = n;
+            for (let k = 0; k < 8; k++) {
+                c = (c & 1) ? (0xEDB88320 ^ (c >>> 1)) : (c >>> 1);
+            }
+            table[n] = c >>> 0;
+        }
+        return table;
+    })();
+
+    function crc32Update(crc, bytes) {
+        let c = crc >>> 0;
+        for (let i = 0; i < bytes.length; i++) {
+            c = crcTable[(c ^ bytes[i]) & 0xFF] ^ (c >>> 8);
+        }
+        return c >>> 0;
+    }
+
+    function createPngChunk(type, data) {
+        const typeBytes = new Uint8Array(4);
+        for (let i = 0; i < 4; i++) typeBytes[i] = type.charCodeAt(i) & 0xFF;
+
+        const chunk = new Uint8Array(8 + data.length + 4);
+        const view = new DataView(chunk.buffer);
+        view.setUint32(0, data.length, false);
+        chunk.set(typeBytes, 4);
+        chunk.set(data, 8);
+
+        let crc = 0xFFFFFFFF;
+        crc = crc32Update(crc, typeBytes);
+        crc = crc32Update(crc, data);
+        crc = (crc ^ 0xFFFFFFFF) >>> 0;
+        view.setUint32(8 + data.length, crc, false);
+        return chunk;
+    }
+
+    async function readAllBytesFromReadableStream(readable) {
+        const reader = readable.getReader();
+        const chunks = [];
+        let totalLength = 0;
+        try {
+            while (true) {
+                const { value, done } = await reader.read();
+                if (done) break;
+                const chunk = value instanceof Uint8Array ? value : new Uint8Array(value);
+                chunks.push(chunk);
+                totalLength += chunk.byteLength;
+            }
+        } finally {
+            reader.releaseLock();
+        }
+
+        const out = new Uint8Array(totalLength);
+        let offset = 0;
+        for (const chunk of chunks) {
+            out.set(chunk, offset);
+            offset += chunk.byteLength;
+        }
+        return out;
+    }
+
+    async function encodeRgbaToPngBlob(width, height, rgbaData) {
+        if (typeof CompressionStream === 'undefined') {
+            throw new Error('CompressionStream is not available in this browser.');
+        }
+
+        const rowBytes = width * 4;
+        const compressor = new CompressionStream('deflate');
+        const writer = compressor.writable.getWriter();
+        const readPromise = readAllBytesFromReadableStream(compressor.readable);
+
+        for (let y = 0; y < height; y++) {
+            const row = new Uint8Array(1 + rowBytes);
+            row[0] = 0;
+            row.set(rgbaData.subarray(y * rowBytes, (y + 1) * rowBytes), 1);
+            await writer.write(row);
+        }
+        await writer.close();
+
+        const compressed = await readPromise;
+
+        const signature = new Uint8Array([137, 80, 78, 71, 13, 10, 26, 10]);
+        const ihdr = new Uint8Array(13);
+        const ihdrView = new DataView(ihdr.buffer);
+        ihdrView.setUint32(0, width, false);
+        ihdrView.setUint32(4, height, false);
+        ihdr[8] = 8;
+        ihdr[9] = 6;
+        ihdr[10] = 0;
+        ihdr[11] = 0;
+        ihdr[12] = 0;
+
+        const pngParts = [
+            signature,
+            createPngChunk('IHDR', ihdr),
+            createPngChunk('IDAT', compressed),
+            createPngChunk('IEND', new Uint8Array(0))
+        ];
+        return new Blob(pngParts, { type: 'image/png' });
+    }
 
     /**
      * Updates the UI for a specific card based on its state (has image or not)
@@ -74,15 +176,10 @@ document.addEventListener('DOMContentLoaded', () => {
      * Performs the actual merging logic and draws to a canvas.
      * @param {number} width - The output width
      * @param {number} height - The output height
-     * @returns {Promise<HTMLCanvasElement>} - A canvas with the merged image
+     * @returns {Promise<ImageData>} - Merged ImageData
      */
     async function mergeImages(width, height) {
         return new Promise((resolve) => {
-            const offscreenCanvas = document.createElement('canvas');
-            offscreenCanvas.width = width;
-            offscreenCanvas.height = height;
-            const ctx = offscreenCanvas.getContext('2d');
-
             const sourcePixelData = [null, null, null, null];
 
             // Pre-process images to get their pixel data at the target resolution
@@ -97,29 +194,31 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
             }
             
-            const targetImageData = ctx.createImageData(width, height);
-            const data = targetImageData.data;
+            const data = new Uint8ClampedArray(width * height * 4);
 
             for (let i = 0; i < data.length; i += 4) {
                 // R channel
                 const rSource = channelSources[0];
-                data[i] = rSource.image ? sourcePixelData[0][i + channelMap[rSource.sourceChannel]] : rSource.value * 255;
+                const rValue = rSource.image ? sourcePixelData[0][i + channelMap[rSource.sourceChannel]] : rSource.value * 255;
+                data[i] = rSource.invert ? 255 - rValue : rValue;
                 
                 // G channel
                 const gSource = channelSources[1];
-                data[i + 1] = gSource.image ? sourcePixelData[1][i + channelMap[gSource.sourceChannel]] : gSource.value * 255;
+                const gValue = gSource.image ? sourcePixelData[1][i + channelMap[gSource.sourceChannel]] : gSource.value * 255;
+                data[i + 1] = gSource.invert ? 255 - gValue : gValue;
 
                 // B channel
                 const bSource = channelSources[2];
-                data[i + 2] = bSource.image ? sourcePixelData[2][i + channelMap[bSource.sourceChannel]] : bSource.value * 255;
+                const bValue = bSource.image ? sourcePixelData[2][i + channelMap[bSource.sourceChannel]] : bSource.value * 255;
+                data[i + 2] = bSource.invert ? 255 - bValue : bValue;
 
                 // A channel
                 const aSource = channelSources[3];
-                data[i + 3] = aSource.image ? sourcePixelData[3][i + channelMap[aSource.sourceChannel]] : aSource.value * 255;
+                const aValue = aSource.image ? sourcePixelData[3][i + channelMap[aSource.sourceChannel]] : aSource.value * 255;
+                data[i + 3] = aSource.invert ? 255 - aValue : aValue;
             }
 
-            ctx.putImageData(targetImageData, 0, 0);
-            resolve(offscreenCanvas);
+            resolve(new ImageData(data, width, height));
         });
     }
 
@@ -127,9 +226,9 @@ document.addEventListener('DOMContentLoaded', () => {
      * Updates the preview canvas with a 512x512 merged image.
      */
     async function updatePreview() {
-        const mergedCanvas = await mergeImages(512, 512);
         previewCtx.clearRect(0, 0, previewCanvas.width, previewCanvas.height);
-        previewCtx.drawImage(mergedCanvas, 0, 0);
+        const mergedImageData = await mergeImages(512, 512);
+        previewCtx.putImageData(mergedImageData, 0, 0);
     }
 
     /**
@@ -140,10 +239,10 @@ document.addEventListener('DOMContentLoaded', () => {
         mergeBtn.textContent = 'Merging...';
         loadingOverlay.classList.remove('hidden');
 
-        const resolution = parseInt(resolutionSelect.value, 10);
-        const finalCanvas = await mergeImages(resolution, resolution);
-
-        finalCanvas.toBlob((blob) => {
+        try {
+            const resolution = parseInt(resolutionSelect.value, 10);
+            const mergedImageData = await mergeImages(resolution, resolution);
+            const blob = await encodeRgbaToPngBlob(resolution, resolution, mergedImageData.data);
             const url = URL.createObjectURL(blob);
             const a = document.createElement('a');
             a.href = url;
@@ -152,11 +251,13 @@ document.addEventListener('DOMContentLoaded', () => {
             a.click();
             document.body.removeChild(a);
             URL.revokeObjectURL(url);
-            
+        } catch (e) {
+            alert(`导出失败: ${e && e.message ? e.message : String(e)}`);
+        } finally {
             mergeBtn.disabled = false;
             mergeBtn.textContent = 'Merge & Download';
             loadingOverlay.classList.add('hidden');
-        }, 'image/png');
+        }
     }
 
     // --- Event Listeners Setup ---
@@ -167,6 +268,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const channelSelectors = card.querySelectorAll('input[type="radio"]');
         const slider = card.querySelector('input[type="range"]');
         const sliderValue = card.querySelector('.slider-value');
+        const invertCheckbox = card.querySelector('.invert-checkbox');
 
         // Drag and Drop
         dropZone.addEventListener('dragover', (e) => {
@@ -216,9 +318,15 @@ document.addEventListener('DOMContentLoaded', () => {
             requestPreviewUpdate();
         });
 
+        invertCheckbox.addEventListener('change', () => {
+            channelSources[index].invert = invertCheckbox.checked;
+            requestPreviewUpdate();
+        });
+
         // Initialize UI
         updateCardUI(index);
         sliderValue.textContent = parseFloat(slider.value).toFixed(2);
+        invertCheckbox.checked = channelSources[index].invert;
     });
 
     mergeBtn.addEventListener('click', handleMergeAndDownload);
