@@ -363,7 +363,6 @@
     <div class="bottom-bar">
         <div class="bottom-left">
             <button id="layout-btn">Auto Layout</button>
-            <button id="rebuild-id-btn">Rebuild IDs by Layout</button>
         </div>
         <div class="bottom-right">
             <label class="toggle">
@@ -410,7 +409,6 @@
         const propertiesList = document.getElementById('properties-list');
         const addPropBtn = document.getElementById('add-prop-btn');
         const layoutBtn = document.getElementById('layout-btn');
-        const rebuildIdBtn = document.getElementById('rebuild-id-btn');
         const snapToggle = document.getElementById('snap-toggle');
         const snapLabel = document.getElementById('snap-label');
         const gridSizeInput = document.getElementById('grid-size');
@@ -446,7 +444,6 @@
             inspectorResizeStartLeft: 0,
             inspectorResizeMainWidth: 0
         };
-        let nodeIdCounter = 1;
         let edgeIdCounter = 1;
         const nodeElements = new Map();
         const nodeSize = { width: 160, height: 70 };
@@ -466,7 +463,6 @@
                     propertiesTitle: 'Properties',
                     addPropBtn: 'Add',
                     layoutBtn: 'Auto Layout',
-                    rebuildIdBtn: 'Rebuild IDs by Layout',
                     snapLabel: 'Auto Snap',
                     gridLabel: 'Grid Size',
                     helpTitle: 'Help',
@@ -514,7 +510,7 @@
                             items: [
                                 'New, Open, and Save manage JSON files.',
                                 'Drag a JSON file onto the canvas to import.',
-                                'Auto Layout arranges nodes; Rebuild IDs renumbers by layout.',
+                                'Auto Layout arranges nodes.',
                                 'Auto Snap and Grid Size help align positions.'
                             ]
                         }
@@ -535,7 +531,6 @@
                     propertiesTitle: '节点属性',
                     addPropBtn: '添加属性',
                     layoutBtn: '自动布局',
-                    rebuildIdBtn: '根据布局重建节点ID',
                     snapLabel: '自动吸附',
                     gridLabel: '网格尺寸',
                     helpTitle: '操作与功能说明',
@@ -583,7 +578,7 @@
                             items: [
                                 '新建、打开、保存用于管理 JSON 文件。',
                                 '支持拖拽 JSON 到画布区域快速导入。',
-                                '自动布局可整理节点；重建节点 ID 会按布局重新编号。',
+                                '自动布局可整理节点。',
                                 '自动吸附与网格尺寸用于对齐节点位置。'
                             ]
                         }
@@ -624,7 +619,6 @@
             propertiesTitle.textContent = strings.propertiesTitle;
             addPropBtn.textContent = strings.addPropBtn;
             layoutBtn.textContent = strings.layoutBtn;
-            rebuildIdBtn.textContent = strings.rebuildIdBtn;
             snapLabel.textContent = strings.snapLabel;
             gridLabel.textContent = strings.gridLabel;
             gridUnit.textContent = 'px';
@@ -666,9 +660,35 @@
             render();
             updateInspector();
         }
+        function hashString(value) {
+            let hash = 2166136261;
+            for (let i = 0; i < value.length; i++) {
+                hash ^= value.charCodeAt(i);
+                hash += (hash << 1) + (hash << 4) + (hash << 7) + (hash << 8) + (hash << 24);
+            }
+            return (hash >>> 0).toString(16);
+        }
+        function generateTimeHashId(existingIds) {
+            const timestamp = Date.now();
+            let seed = `${timestamp}`;
+            let id = `node-${hashString(seed)}`;
+            while (existingIds.has(id)) {
+                seed = `${timestamp}-${Math.floor(Math.random() * 1000000)}`;
+                id = `node-${hashString(seed)}`;
+            }
+            existingIds.add(id);
+            return id;
+        }
         function createNode(x, y, overrides = {}) {
+            const existingIds = new Set(state.nodes.map(node => node.id));
+            let nodeId = overrides.id;
+            if (nodeId && !existingIds.has(nodeId)) {
+                existingIds.add(nodeId);
+            } else {
+                nodeId = generateTimeHashId(existingIds);
+            }
             const node = {
-                id: overrides.id || `node-${nodeIdCounter++}`,
+                id: nodeId,
                 name: overrides.name || i18n[currentLang].defaults.newName,
                 description: overrides.description || '',
                 x,
@@ -1274,20 +1294,14 @@
         }
         function autoLayout() {
             const incoming = new Map();
-            const outgoing = new Map();
             state.nodes.forEach(node => {
                 incoming.set(node.id, []);
-                outgoing.set(node.id, []);
             });
             state.edges.forEach(edge => {
                 if (incoming.has(edge.to)) {
                     incoming.get(edge.to).push(edge.from);
                 }
-                if (outgoing.has(edge.from)) {
-                    outgoing.get(edge.from).push(edge.to);
-                }
             });
-            const roots = state.nodes.filter(node => (incoming.get(node.id) || []).length === 0);
             const depthCache = new Map();
             const visiting = new Set();
             function computeDepth(nodeId) {
@@ -1359,121 +1373,52 @@
             }
             levelsArray.forEach(level => {
                 const group = grouped.get(level);
-                if (level === 0) {
-                    group.forEach((node, index) => {
-                        const snapped = applySnap({
-                            x: index * horizontalSpacing,
-                            y: level * verticalSpacing
-                        });
-                        node.x = snapped.x;
-                        node.y = snapped.y;
-                    });
-                    return;
-                }
                 const desiredXMap = new Map();
                 const weightMap = new Map();
                 group.forEach(node => {
                     const parents = incoming.get(node.id) || [];
                     if (parents.length === 0) {
-                        desiredXMap.set(node.id, 0);
+                        desiredXMap.set(node.id, node.x);
                         weightMap.set(node.id, 1);
                         return;
                     }
-                    let weightedSum = 0;
-                    let totalWeight = 0;
+                    let sum = 0;
+                    let count = 0;
                     parents.forEach(parentId => {
                         const parentNode = getNodeById(parentId);
-                        const parentLevel = maxDepth.get(parentId) || 0;
-                        const levelDistance = Math.max(1, level - parentLevel);
-                        const weight = 1 / levelDistance;
                         if (parentNode) {
-                            weightedSum += parentNode.x * weight;
-                            totalWeight += weight;
+                            sum += parentNode.x;
+                            count += 1;
                         }
                     });
-                    const desiredX = totalWeight > 0 ? weightedSum / totalWeight : 0;
+                    const desiredX = count > 0 ? sum / count : node.x;
                     desiredXMap.set(node.id, desiredX);
-                    weightMap.set(node.id, Math.max(1, parents.length));
+                    weightMap.set(node.id, Math.max(1, count));
                 });
-                group.sort((a, b) => {
+                const ordered = [...group].sort((a, b) => {
                     const ax = desiredXMap.get(a.id) ?? 0;
                     const bx = desiredXMap.get(b.id) ?? 0;
                     if (ax !== bx) {
                         return ax - bx;
                     }
+                    if (a.x !== b.x) {
+                        return a.x - b.x;
+                    }
                     return a.id.localeCompare(b.id);
                 });
-                const targets = group.map((node, index) => (desiredXMap.get(node.id) ?? 0) - index * horizontalSpacing);
-                const weights = group.map(node => weightMap.get(node.id) ?? 1);
-                const yPositions = isotonicRegression(targets, weights);
-                group.forEach((node, index) => {
+                const targets = ordered.map((node, index) => (desiredXMap.get(node.id) ?? 0) - index * horizontalSpacing);
+                const weights = ordered.map(node => weightMap.get(node.id) ?? 1);
+                const positions = isotonicRegression(targets, weights);
+                ordered.forEach((node, index) => {
                     const snapped = applySnap({
-                        x: yPositions[index] + index * horizontalSpacing,
+                        x: positions[index] + index * horizontalSpacing,
                         y: level * verticalSpacing
                     });
                     node.x = snapped.x;
                     node.y = snapped.y;
                 });
             });
-            if (roots.length === 0 && state.nodes.length > 0) {
-                state.nodes.forEach((node, index) => {
-                    const snapped = applySnap({
-                        x: 0,
-                        y: index * verticalSpacing
-                    });
-                    node.x = snapped.x;
-                    node.y = snapped.y;
-                });
-            }
             render();
-        }
-        function rebuildNodeIdsByLayout() {
-            if (state.nodes.length === 0) {
-                return;
-            }
-            const sorted = [...state.nodes].sort((a, b) => {
-                if (a.y !== b.y) {
-                    return a.y - b.y;
-                }
-                if (a.x !== b.x) {
-                    return a.x - b.x;
-                }
-                return a.id.localeCompare(b.id);
-            });
-            const idMap = new Map();
-            sorted.forEach((node, index) => {
-                idMap.set(node.id, `node-${index + 1}`);
-            });
-            const selectedIds = new Set();
-            state.selectedNodeIds.forEach(id => {
-                const nextId = idMap.get(id);
-                if (nextId) {
-                    selectedIds.add(nextId);
-                }
-            });
-            const oldSelectedId = state.selectedNodeId;
-            const oldElements = new Map(nodeElements);
-            state.nodes.forEach(node => {
-                const nextId = idMap.get(node.id);
-                node.id = nextId;
-            });
-            state.edges.forEach(edge => {
-                edge.from = idMap.get(edge.from) || edge.from;
-                edge.to = idMap.get(edge.to) || edge.to;
-            });
-            nodeElements.clear();
-            oldElements.forEach((el, oldId) => {
-                const nextId = idMap.get(oldId);
-                if (nextId) {
-                    el.dataset.id = nextId;
-                    nodeElements.set(nextId, el);
-                }
-            });
-            state.selectedNodeIds = selectedIds;
-            state.selectedNodeId = oldSelectedId ? idMap.get(oldSelectedId) || null : null;
-            nodeIdCounter = state.nodes.length + 1;
-            render();
-            updateInspector();
         }
         function serializeData() {
             return {
@@ -1497,26 +1442,34 @@
             };
         }
         function loadData(data) {
-            state.nodes = (data.nodes || []).map(item => ({
-                id: item.id || `node-${nodeIdCounter++}`,
-                name: item.name || i18n[currentLang].defaults.nodeName,
-                description: item.description || '',
-                x: Number(item.x) || 0,
-                y: Number(item.y) || 0,
-                width: nodeSize.width,
-                height: nodeSize.height,
-                properties: (item.properties || []).map(prop => ({
-                    id: prop.id || `prop-${Math.random().toString(36).slice(2)}`,
-                    name: prop.name || '',
-                    value: prop.value || ''
-                }))
-            }));
+            const existingIds = new Set();
+            state.nodes = (data.nodes || []).map(item => {
+                let nodeId = item.id;
+                if (nodeId && !existingIds.has(nodeId)) {
+                    existingIds.add(nodeId);
+                } else {
+                    nodeId = generateTimeHashId(existingIds);
+                }
+                return {
+                    id: nodeId,
+                    name: item.name || i18n[currentLang].defaults.nodeName,
+                    description: item.description || '',
+                    x: Number(item.x) || 0,
+                    y: Number(item.y) || 0,
+                    width: nodeSize.width,
+                    height: nodeSize.height,
+                    properties: (item.properties || []).map(prop => ({
+                        id: prop.id || `prop-${Math.random().toString(36).slice(2)}`,
+                        name: prop.name || '',
+                        value: prop.value || ''
+                    }))
+                };
+            });
             state.edges = (data.edges || []).map(item => ({
                 id: item.id || `edge-${edgeIdCounter++}`,
                 from: item.from,
                 to: item.to
             }));
-            nodeIdCounter = state.nodes.length + 1;
             edgeIdCounter = state.edges.length + 1;
             state.selectedNodeId = null;
             state.selectedEdgeId = null;
@@ -1582,7 +1535,6 @@
             state.selectedNodeIds = new Set();
             state.selectedEdgeId = null;
             state.linkMode = null;
-            nodeIdCounter = 1;
             edgeIdCounter = 1;
             createNode(100, 100, { name: i18n[currentLang].defaults.rootName, description: i18n[currentLang].defaults.rootDesc });
             render();
@@ -1633,7 +1585,6 @@
         helpBackdrop.addEventListener('click', closeHelpPanel);
         helpClose.addEventListener('click', closeHelpPanel);
         layoutBtn.addEventListener('click', autoLayout);
-        rebuildIdBtn.addEventListener('click', rebuildNodeIdsByLayout);
         canvasArea.addEventListener('mousedown', onCanvasMouseDown);
         canvasArea.addEventListener('mousemove', onCanvasMouseMove);
         canvasArea.addEventListener('mouseup', onCanvasMouseUp);
