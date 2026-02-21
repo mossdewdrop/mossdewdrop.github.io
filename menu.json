@@ -33,6 +33,15 @@
     ]
   },
   {
+    "category": "Design Tools",
+    "items": [
+      {
+        "name": "Tree Data Editor",
+        "path": "functions/design-tools/tree-data-editor"
+      }
+    ]
+  },
+  {
     "category": "Others",
     "items": [
       {

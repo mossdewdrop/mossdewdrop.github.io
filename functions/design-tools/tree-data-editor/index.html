@@ -1,0 +1,1701 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tree Data Editor</title>
+    <style>
+        html, body {
+            margin: 0;
+            padding: 0;
+            height: 100%;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            color: #1f1f1f;
+            background: #ffffff;
+        }
+        body {
+            display: flex;
+            flex-direction: column;
+        }
+        .topbar {
+            height: 48px;
+            background: #1f1f1f;
+            color: #ffffff;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 0 16px;
+            flex-shrink: 0;
+        }
+        .topbar .title {
+            font-size: 16px;
+            font-weight: 600;
+            margin-right: 12px;
+        }
+        .topbar-spacer {
+            flex: 1;
+        }
+        .topbar button {
+            background: #2d2d2d;
+            border: 1px solid #3d3d3d;
+            color: #ffffff;
+            padding: 6px 14px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+        .topbar button:hover {
+            background: #3a3a3a;
+        }
+        .help-backdrop {
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.2);
+            z-index: 80;
+        }
+        .help-panel {
+            position: fixed;
+            top: 64px;
+            right: 16px;
+            width: 380px;
+            max-height: calc(100vh - 96px);
+            overflow: auto;
+            background: #ffffff;
+            border: 1px solid #e1e1e1;
+            border-radius: 12px;
+            box-shadow: 0 10px 28px rgba(0, 0, 0, 0.18);
+            padding: 16px 18px;
+            z-index: 90;
+            box-sizing: border-box;
+        }
+        .help-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            margin-bottom: 10px;
+        }
+        .help-title {
+            font-size: 16px;
+            font-weight: 600;
+            margin: 0;
+        }
+        .help-close {
+            background: #1f1f1f;
+            color: #ffffff;
+            border: none;
+            border-radius: 6px;
+            padding: 4px 10px;
+            cursor: pointer;
+            font-size: 12px;
+        }
+        .help-section-title {
+            font-weight: 600;
+            margin: 10px 0 6px;
+        }
+        .help-panel ul {
+            margin: 6px 0 12px;
+            padding-left: 18px;
+        }
+        .main {
+            flex: 1;
+            display: flex;
+            overflow: hidden;
+            min-height: 0;
+        }
+        .canvas-area {
+            flex: 1;
+            position: relative;
+            background: #f5f6f8;
+            overflow: hidden;
+        }
+        #edges-canvas {
+            position: absolute;
+            inset: 0;
+        }
+        #nodes-layer {
+            position: absolute;
+            inset: 0;
+            transform-origin: 0 0;
+        }
+        .node {
+            position: absolute;
+            width: 160px;
+            height: 70px;
+            background: #ffffff;
+            border: 1px solid #d7d7d7;
+            border-radius: 10px;
+            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            user-select: none;
+        }
+        .node.selected {
+            outline: 2px solid #1890ff;
+        }
+        .node-title {
+            padding: 0 10px;
+            text-align: center;
+            font-size: 14px;
+            pointer-events: none;
+        }
+        .slot {
+            position: absolute;
+            width: 14px;
+            height: 14px;
+            border-radius: 50%;
+            border: 2px solid #4a4a4a;
+            background: #ffffff;
+            left: 50%;
+            transform: translateX(-50%);
+        }
+        .slot.input {
+            top: -9px;
+        }
+        .slot.output {
+            bottom: -9px;
+        }
+        .node-tooltip {
+            position: absolute;
+            background: rgba(0, 0, 0, 0.8);
+            color: #ffffff;
+            padding: 6px 10px;
+            border-radius: 6px;
+            font-size: 12px;
+            pointer-events: none;
+            opacity: 0;
+            transform: translateY(-4px);
+            transition: opacity 0.12s ease;
+            z-index: 20;
+            max-width: 240px;
+            word-break: break-word;
+        }
+        .selection-box {
+            position: absolute;
+            border: 1px dashed #1890ff;
+            background: rgba(24, 144, 255, 0.12);
+            pointer-events: none;
+            z-index: 15;
+        }
+        .sidebar {
+            width: 320px;
+            background: #ffffff;
+            border-left: 1px solid #e1e1e1;
+            padding: 12px 14px;
+            overflow-y: auto;
+            flex-shrink: 0;
+            box-sizing: border-box;
+        }
+        .inspector-resizer {
+            width: 6px;
+            cursor: col-resize;
+            background: transparent;
+            flex-shrink: 0;
+        }
+        .inspector-resizer:hover {
+            background: rgba(0, 0, 0, 0.06);
+        }
+        .inspector-title {
+            font-weight: 600;
+            margin-bottom: 12px;
+        }
+        .field {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            margin-bottom: 12px;
+        }
+        .field label {
+            font-size: 13px;
+            color: #555;
+        }
+        .field input, .field textarea {
+            border: 1px solid #d0d0d0;
+            border-radius: 6px;
+            padding: 6px 8px;
+            font-size: 14px;
+        }
+        .field textarea {
+            resize: vertical;
+            min-height: 60px;
+        }
+        .properties-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-top: 8px;
+            margin-bottom: 6px;
+        }
+        .properties-header button {
+            background: #1890ff;
+            border: none;
+            color: #ffffff;
+            padding: 4px 10px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 12px;
+        }
+        .property-row {
+            display: flex;
+            gap: 6px;
+            align-items: center;
+            margin-bottom: 8px;
+            width: 100%;
+        }
+        .property-row input {
+            flex: 1;
+            min-width: 0;
+            width: 0;
+        }
+        .property-row button {
+            background: #ff4d4f;
+            border: none;
+            color: #ffffff;
+            border-radius: 6px;
+            padding: 4px 8px;
+            cursor: pointer;
+            font-size: 12px;
+            flex-shrink: 0;
+        }
+        .hidden {
+            display: none;
+        }
+        .bottom-bar {
+            height: 44px;
+            background: #f0f1f3;
+            border-top: 1px solid #e1e1e1;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 14px;
+            gap: 12px;
+        }
+        .bottom-left {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .bottom-right {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .bottom-bar button {
+            background: #1890ff;
+            border: none;
+            color: #ffffff;
+            padding: 6px 16px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+        .toggle {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 13px;
+            color: #333;
+        }
+        .grid-input {
+            width: 64px;
+            border: 1px solid #d0d0d0;
+            border-radius: 6px;
+            padding: 4px 6px;
+            font-size: 13px;
+        }
+        .grid-label {
+            font-size: 13px;
+            color: #333;
+        }
+        .canvas-area.grabbing {
+            cursor: grabbing;
+        }
+    </style>
+</head>
+<body>
+    <div class="topbar">
+        <div id="app-title" class="title">Tree Data Editor</div>
+        <button id="new-btn">New</button>
+        <button id="open-btn">Open</button>
+        <button id="save-btn">Save</button>
+        <input id="file-input" type="file" accept=".json,application/json" class="hidden">
+        <div class="topbar-spacer"></div>
+        <button id="lang-btn">中文</button>
+        <button id="help-btn">Help</button>
+    </div>
+    <div id="help-backdrop" class="help-backdrop hidden"></div>
+    <div id="help-panel" class="help-panel hidden" role="dialog" aria-modal="false" aria-labelledby="help-title">
+        <div class="help-header">
+            <h3 id="help-title" class="help-title">Help</h3>
+            <button id="help-close" class="help-close">Close</button>
+        </div>
+        <div id="help-content"></div>
+    </div>
+    <div class="main">
+        <div id="canvas-area" class="canvas-area">
+            <canvas id="edges-canvas"></canvas>
+            <div id="nodes-layer"></div>
+            <div id="node-tooltip" class="node-tooltip"></div>
+                <div id="selection-box" class="selection-box hidden"></div>
+        </div>
+        <div id="inspector-resizer" class="inspector-resizer"></div>
+        <div class="sidebar">
+            <div id="inspector-title" class="inspector-title">Inspector</div>
+            <div id="inspector-empty">No node selected</div>
+            <div id="inspector-content" class="hidden">
+                <div class="field">
+                    <label id="node-name-label" for="node-name">Node Name</label>
+                    <input id="node-name" type="text">
+                </div>
+                <div class="field">
+                    <label id="node-desc-label" for="node-desc">Description</label>
+                    <textarea id="node-desc"></textarea>
+                </div>
+                <div class="properties-header">
+                    <span id="properties-title">Properties</span>
+                    <button id="add-prop-btn">Add</button>
+                </div>
+                <div id="properties-list"></div>
+            </div>
+        </div>
+    </div>
+    <div class="bottom-bar">
+        <div class="bottom-left">
+            <button id="layout-btn">Auto Layout</button>
+            <button id="rebuild-id-btn">Rebuild IDs by Layout</button>
+        </div>
+        <div class="bottom-right">
+            <label class="toggle">
+                <input id="snap-toggle" type="checkbox">
+                <span id="snap-label">Auto Snap</span>
+            </label>
+            <label class="toggle">
+                <span id="grid-label" class="grid-label">Grid Size</span>
+                <input id="grid-size" class="grid-input" type="number" min="5" step="1" value="20">
+                <span id="grid-unit" class="grid-label">px</span>
+            </label>
+        </div>
+    </div>
+    <script>
+        const canvasArea = document.getElementById('canvas-area');
+        const canvas = document.getElementById('edges-canvas');
+        const ctx = canvas.getContext('2d');
+        const nodesLayer = document.getElementById('nodes-layer');
+        const tooltip = document.getElementById('node-tooltip');
+        const selectionBox = document.getElementById('selection-box');
+        const inspectorResizer = document.getElementById('inspector-resizer');
+        const sidebar = document.querySelector('.sidebar');
+        const mainArea = document.querySelector('.main');
+        const newBtn = document.getElementById('new-btn');
+        const openBtn = document.getElementById('open-btn');
+        const saveBtn = document.getElementById('save-btn');
+        const fileInput = document.getElementById('file-input');
+        const langBtn = document.getElementById('lang-btn');
+        const helpBtn = document.getElementById('help-btn');
+        const helpPanel = document.getElementById('help-panel');
+        const helpBackdrop = document.getElementById('help-backdrop');
+        const helpClose = document.getElementById('help-close');
+        const helpTitle = document.getElementById('help-title');
+        const helpContent = document.getElementById('help-content');
+        const appTitle = document.getElementById('app-title');
+        const inspectorTitle = document.getElementById('inspector-title');
+        const inspectorEmpty = document.getElementById('inspector-empty');
+        const inspectorContent = document.getElementById('inspector-content');
+        const nodeNameLabel = document.getElementById('node-name-label');
+        const nodeDescLabel = document.getElementById('node-desc-label');
+        const propertiesTitle = document.getElementById('properties-title');
+        const nodeNameInput = document.getElementById('node-name');
+        const nodeDescInput = document.getElementById('node-desc');
+        const propertiesList = document.getElementById('properties-list');
+        const addPropBtn = document.getElementById('add-prop-btn');
+        const layoutBtn = document.getElementById('layout-btn');
+        const rebuildIdBtn = document.getElementById('rebuild-id-btn');
+        const snapToggle = document.getElementById('snap-toggle');
+        const snapLabel = document.getElementById('snap-label');
+        const gridSizeInput = document.getElementById('grid-size');
+        const gridLabel = document.getElementById('grid-label');
+        const gridUnit = document.getElementById('grid-unit');
+        const state = {
+            nodes: [],
+            edges: [],
+            selectedNodeId: null,
+            selectedNodeIds: new Set(),
+            selectedEdgeId: null,
+            linkMode: null,
+            pointerWorld: { x: 0, y: 0 },
+            view: { x: 0, y: 0, scale: 1 },
+            draggingNodeId: null,
+            dragOffset: { x: 0, y: 0 },
+            dragGroupOffsets: null,
+            dragStartPointer: null,
+            dragMoved: false,
+            draggingCanvas: false,
+            dragCanvasStart: { x: 0, y: 0 },
+            dragViewStart: { x: 0, y: 0 },
+            selecting: false,
+            selectionStart: null,
+            selectionBase: null,
+            gridSize: 20,
+            snapEnabled: false,
+            resizingInspector: false,
+            inspectorResizeStartX: 0,
+            inspectorResizeStartWidth: 0,
+            inspectorResizeGrabOffset: 0,
+            inspectorResizeHandleWidth: 0,
+            inspectorResizeStartLeft: 0,
+            inspectorResizeMainWidth: 0
+        };
+        let nodeIdCounter = 1;
+        let edgeIdCounter = 1;
+        const nodeElements = new Map();
+        const nodeSize = { width: 160, height: 70 };
+        const inspectorLimits = { min: 240, max: 520 };
+        const i18n = {
+            en: {
+                ui: {
+                    title: 'Tree Data Editor',
+                    newBtn: 'New',
+                    openBtn: 'Open',
+                    saveBtn: 'Save',
+                    helpBtn: 'Help',
+                    inspectorTitle: 'Inspector',
+                    inspectorEmpty: 'No node selected',
+                    nodeNameLabel: 'Node Name',
+                    nodeDescLabel: 'Description',
+                    propertiesTitle: 'Properties',
+                    addPropBtn: 'Add',
+                    layoutBtn: 'Auto Layout',
+                    rebuildIdBtn: 'Rebuild IDs by Layout',
+                    snapLabel: 'Auto Snap',
+                    gridLabel: 'Grid Size',
+                    helpTitle: 'Help',
+                    helpClose: 'Close'
+                },
+                prompts: {
+                    confirmNew: 'Create a new document and overwrite current content?',
+                    confirmOverwrite: 'Overwrite current content?',
+                    alertParseFail: 'Failed to parse file.'
+                },
+                defaults: {
+                    rootName: 'Root Node',
+                    rootDesc: 'Root node description',
+                    newName: 'New Node',
+                    nodeName: 'Node'
+                },
+                help: {
+                    sections: [
+                        {
+                            title: 'Basic Controls',
+                            items: [
+                                'Drag nodes with left mouse; Shift + left drag to marquee select.',
+                                'Ctrl + left click on canvas creates a node.',
+                                'Hold right mouse to pan the canvas.',
+                                'Mouse wheel zooms; double middle click resets view.',
+                                'Select a node or edge and press Delete to remove.'
+                            ]
+                        },
+                        {
+                            title: 'Links & Creation',
+                            items: [
+                                'Drag from a node output to a target input to connect.',
+                                'In link mode, clicking empty space creates and connects a new node.'
+                            ]
+                        },
+                        {
+                            title: 'Editing & Properties',
+                            items: [
+                                'Use the right Inspector to edit name, description, and properties.',
+                                'Properties can be added or removed and update immediately.'
+                            ]
+                        },
+                        {
+                            title: 'Files & Layout',
+                            items: [
+                                'New, Open, and Save manage JSON files.',
+                                'Drag a JSON file onto the canvas to import.',
+                                'Auto Layout arranges nodes; Rebuild IDs renumbers by layout.',
+                                'Auto Snap and Grid Size help align positions.'
+                            ]
+                        }
+                    ]
+                }
+            },
+            zh: {
+                ui: {
+                    title: '树状数据编辑器',
+                    newBtn: '新建',
+                    openBtn: '打开',
+                    saveBtn: '保存',
+                    helpBtn: '帮助',
+                    inspectorTitle: '检查器',
+                    inspectorEmpty: '未选择节点',
+                    nodeNameLabel: '节点名称',
+                    nodeDescLabel: '节点简介',
+                    propertiesTitle: '节点属性',
+                    addPropBtn: '添加属性',
+                    layoutBtn: '自动布局',
+                    rebuildIdBtn: '根据布局重建节点ID',
+                    snapLabel: '自动吸附',
+                    gridLabel: '网格尺寸',
+                    helpTitle: '操作与功能说明',
+                    helpClose: '关闭'
+                },
+                prompts: {
+                    confirmNew: '是否新建文档并覆盖当前内容？',
+                    confirmOverwrite: '是否覆盖当前页面内容？',
+                    alertParseFail: '文件解析失败'
+                },
+                defaults: {
+                    rootName: '根节点',
+                    rootDesc: '根节点简介',
+                    newName: '新节点',
+                    nodeName: '节点'
+                },
+                help: {
+                    sections: [
+                        {
+                            title: '基础操作',
+                            items: [
+                                '左键拖动节点可移动；Shift + 左键可框选多节点。',
+                                'Ctrl + 左键点击画布可新增节点。',
+                                '右键按住拖动画布平移视图。',
+                                '滚轮缩放画布；鼠标中键双击重置视图。',
+                                '选中节点或连线后按 Delete 删除。'
+                            ]
+                        },
+                        {
+                            title: '连线与新增',
+                            items: [
+                                '从节点底部输出圆点拖到目标节点顶部输入圆点完成连线。',
+                                '连线模式下点击空白处会创建并连接一个新节点。'
+                            ]
+                        },
+                        {
+                            title: '编辑与属性',
+                            items: [
+                                '右侧检查器可编辑节点名称、简介与属性键值。',
+                                '属性支持动态添加与删除，变更实时保存到当前节点。'
+                            ]
+                        },
+                        {
+                            title: '文件与布局',
+                            items: [
+                                '新建、打开、保存用于管理 JSON 文件。',
+                                '支持拖拽 JSON 到画布区域快速导入。',
+                                '自动布局可整理节点；重建节点 ID 会按布局重新编号。',
+                                '自动吸附与网格尺寸用于对齐节点位置。'
+                            ]
+                        }
+                    ]
+                }
+            }
+        };
+        let currentLang = 'en';
+        function getIndexedNodeName(index) {
+            if (currentLang === 'en') {
+                return `Node ${index}`;
+            }
+            return `节点 ${index}`;
+        }
+        function renderHelpContent() {
+            const sections = i18n[currentLang].help.sections;
+            helpContent.innerHTML = sections.map(section => {
+                const items = section.items.map(item => `<li>${item}</li>`).join('');
+                return `<div class="help-section-title">${section.title}</div><ul>${items}</ul>`;
+            }).join('');
+        }
+        function updateLanguageButton() {
+            langBtn.textContent = currentLang === 'en' ? '中文' : 'English';
+        }
+        function updateUiText() {
+            const strings = i18n[currentLang].ui;
+            appTitle.textContent = strings.title;
+            document.title = strings.title;
+            document.documentElement.lang = currentLang === 'en' ? 'en' : 'zh-CN';
+            newBtn.textContent = strings.newBtn;
+            openBtn.textContent = strings.openBtn;
+            saveBtn.textContent = strings.saveBtn;
+            helpBtn.textContent = strings.helpBtn;
+            inspectorTitle.textContent = strings.inspectorTitle;
+            inspectorEmpty.textContent = strings.inspectorEmpty;
+            nodeNameLabel.textContent = strings.nodeNameLabel;
+            nodeDescLabel.textContent = strings.nodeDescLabel;
+            propertiesTitle.textContent = strings.propertiesTitle;
+            addPropBtn.textContent = strings.addPropBtn;
+            layoutBtn.textContent = strings.layoutBtn;
+            rebuildIdBtn.textContent = strings.rebuildIdBtn;
+            snapLabel.textContent = strings.snapLabel;
+            gridLabel.textContent = strings.gridLabel;
+            gridUnit.textContent = 'px';
+            helpTitle.textContent = strings.helpTitle;
+            helpClose.textContent = strings.helpClose;
+            updateLanguageButton();
+            renderHelpContent();
+        }
+        function translateAutoNodeText(prevLang, nextLang) {
+            const prevDefaults = i18n[prevLang].defaults;
+            const nextDefaults = i18n[nextLang].defaults;
+            const prevRegex = prevLang === 'en' ? /^Node (\d+)$/ : /^节点 (\d+)$/;
+            state.nodes.forEach(node => {
+                if (node.name === prevDefaults.rootName) {
+                    node.name = nextDefaults.rootName;
+                } else if (node.name === prevDefaults.newName) {
+                    node.name = nextDefaults.newName;
+                } else if (node.name === prevDefaults.nodeName) {
+                    node.name = nextDefaults.nodeName;
+                } else {
+                    const match = node.name.match(prevRegex);
+                    if (match) {
+                        node.name = nextLang === 'en' ? `Node ${match[1]}` : `节点 ${match[1]}`;
+                    }
+                }
+                if (node.description === prevDefaults.rootDesc) {
+                    node.description = nextDefaults.rootDesc;
+                }
+            });
+        }
+        function setLanguage(nextLang) {
+            if (nextLang === currentLang) {
+                return;
+            }
+            const prevLang = currentLang;
+            currentLang = nextLang;
+            updateUiText();
+            translateAutoNodeText(prevLang, nextLang);
+            render();
+            updateInspector();
+        }
+        function createNode(x, y, overrides = {}) {
+            const node = {
+                id: overrides.id || `node-${nodeIdCounter++}`,
+                name: overrides.name || i18n[currentLang].defaults.newName,
+                description: overrides.description || '',
+                x,
+                y,
+                width: nodeSize.width,
+                height: nodeSize.height,
+                properties: overrides.properties || []
+            };
+            state.nodes.push(node);
+            return node;
+        }
+        function createEdge(fromId, toId, overrides = {}) {
+            const edge = {
+                id: overrides.id || `edge-${edgeIdCounter++}`,
+                from: fromId,
+                to: toId
+            };
+            state.edges.push(edge);
+            return edge;
+        }
+        function worldToScreen(point) {
+            return {
+                x: (point.x + state.view.x) * state.view.scale,
+                y: (point.y + state.view.y) * state.view.scale
+            };
+        }
+        function screenToWorld(point) {
+            return {
+                x: point.x / state.view.scale - state.view.x,
+                y: point.y / state.view.scale - state.view.y
+            };
+        }
+        function clamp(value, min, max) {
+            return Math.min(max, Math.max(min, value));
+        }
+        function updateCanvasSize() {
+            const rect = canvasArea.getBoundingClientRect();
+            canvas.width = rect.width;
+            canvas.height = rect.height;
+            render();
+        }
+        function snapValue(value) {
+            return Math.round(value / state.gridSize) * state.gridSize;
+        }
+        function applySnap(point) {
+            if (!state.snapEnabled) {
+                return point;
+            }
+            return {
+                x: snapValue(point.x),
+                y: snapValue(point.y)
+            };
+        }
+        function getNodeById(id) {
+            return state.nodes.find(node => node.id === id);
+        }
+        function getEdgeById(id) {
+            return state.edges.find(edge => edge.id === id);
+        }
+        function removeNode(id) {
+            state.nodes = state.nodes.filter(node => node.id !== id);
+            state.edges = state.edges.filter(edge => edge.from !== id && edge.to !== id);
+            const el = nodeElements.get(id);
+            if (el) {
+                el.remove();
+                nodeElements.delete(id);
+            }
+            if (state.selectedNodeId === id) {
+                state.selectedNodeId = null;
+            }
+            state.selectedNodeIds.delete(id);
+            render();
+            updateInspector();
+        }
+        function removeEdge(id) {
+            state.edges = state.edges.filter(edge => edge.id !== id);
+            if (state.selectedEdgeId === id) {
+                state.selectedEdgeId = null;
+            }
+            render();
+        }
+        function setSelectedNode(id) {
+            state.selectedNodeId = id;
+            state.selectedNodeIds = new Set([id]);
+            state.selectedEdgeId = null;
+            render();
+            updateInspector();
+        }
+        function addSelectedNode(id) {
+            state.selectedNodeId = id;
+            state.selectedNodeIds.add(id);
+            state.selectedEdgeId = null;
+            render();
+            updateInspector();
+        }
+        function setSelectedEdge(id) {
+            state.selectedEdgeId = id;
+            state.selectedNodeId = null;
+            state.selectedNodeIds = new Set();
+            render();
+            updateInspector();
+        }
+        function clearSelection() {
+            state.selectedNodeId = null;
+            state.selectedNodeIds = new Set();
+            state.selectedEdgeId = null;
+            render();
+            updateInspector();
+        }
+        function renderNodes() {
+            const translateX = state.view.x * state.view.scale;
+            const translateY = state.view.y * state.view.scale;
+            nodesLayer.style.transform = `translate(${translateX}px, ${translateY}px) scale(${state.view.scale})`;
+            state.nodes.forEach(node => {
+                let el = nodeElements.get(node.id);
+                if (!el) {
+                    el = document.createElement('div');
+                    el.className = 'node';
+                    el.dataset.id = node.id;
+                    const title = document.createElement('div');
+                    title.className = 'node-title';
+                    el.appendChild(title);
+                    const inputSlot = document.createElement('div');
+                    inputSlot.className = 'slot input';
+                    inputSlot.dataset.slot = 'input';
+                    const outputSlot = document.createElement('div');
+                    outputSlot.className = 'slot output';
+                    outputSlot.dataset.slot = 'output';
+                    el.appendChild(inputSlot);
+                    el.appendChild(outputSlot);
+                    el.addEventListener('mousedown', onNodeMouseDown);
+                    el.addEventListener('click', onNodeClick);
+                    el.addEventListener('mouseenter', onNodeMouseEnter);
+                    el.addEventListener('mouseleave', onNodeMouseLeave);
+                    el.addEventListener('mousemove', onNodeMouseMove);
+                    inputSlot.addEventListener('mousedown', onInputSlotMouseDown);
+                    outputSlot.addEventListener('mousedown', onOutputSlotMouseDown);
+                    nodesLayer.appendChild(el);
+                    nodeElements.set(node.id, el);
+                }
+                const titleEl = el.querySelector('.node-title');
+                titleEl.textContent = node.name;
+                el.style.transform = `translate(${node.x}px, ${node.y}px)`;
+                el.classList.toggle('selected', state.selectedNodeIds.has(node.id));
+            });
+            for (const [id, el] of nodeElements) {
+                if (!state.nodes.find(node => node.id === id)) {
+                    el.remove();
+                    nodeElements.delete(id);
+                }
+            }
+        }
+        function renderEdges() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            renderGrid();
+            ctx.lineWidth = 2;
+            state.edges.forEach(edge => {
+                const fromNode = getNodeById(edge.from);
+                const toNode = getNodeById(edge.to);
+                if (!fromNode || !toNode) {
+                    return;
+                }
+                const fromWorld = { x: fromNode.x + fromNode.width / 2, y: fromNode.y + fromNode.height };
+                const toWorld = { x: toNode.x + toNode.width / 2, y: toNode.y };
+                const from = worldToScreen(fromWorld);
+                const to = worldToScreen(toWorld);
+                ctx.beginPath();
+                ctx.strokeStyle = edge.id === state.selectedEdgeId ? '#ff6a00' : '#5b5b5b';
+                ctx.moveTo(from.x, from.y);
+                ctx.lineTo(to.x, to.y);
+                ctx.stroke();
+            });
+            if (state.linkMode) {
+                const fromNode = getNodeById(state.linkMode.fromNodeId);
+                if (fromNode) {
+                    const fromWorld = { x: fromNode.x + fromNode.width / 2, y: fromNode.y + fromNode.height };
+                    const from = worldToScreen(fromWorld);
+                    const to = worldToScreen(state.pointerWorld);
+                    ctx.beginPath();
+                    ctx.strokeStyle = '#1890ff';
+                    ctx.setLineDash([6, 6]);
+                    ctx.moveTo(from.x, from.y);
+                    ctx.lineTo(to.x, to.y);
+                    ctx.stroke();
+                    ctx.setLineDash([]);
+                }
+            }
+        }
+        function render() {
+            renderNodes();
+            renderEdges();
+        }
+        function renderGrid() {
+            const size = state.gridSize;
+            if (!size || size <= 0) {
+                return;
+            }
+            const scaledSize = size * state.view.scale;
+            if (scaledSize < 6) {
+                return;
+            }
+            const offsetX = (state.view.x * state.view.scale) % scaledSize;
+            const offsetY = (state.view.y * state.view.scale) % scaledSize;
+            ctx.save();
+            ctx.strokeStyle = 'rgba(0, 0, 0, 0.12)';
+            ctx.lineWidth = 1;
+            ctx.setLineDash([4, 6]);
+            for (let x = offsetX; x < canvas.width; x += scaledSize) {
+                ctx.beginPath();
+                ctx.moveTo(x, 0);
+                ctx.lineTo(x, canvas.height);
+                ctx.stroke();
+            }
+            for (let y = offsetY; y < canvas.height; y += scaledSize) {
+                ctx.beginPath();
+                ctx.moveTo(0, y);
+                ctx.lineTo(canvas.width, y);
+                ctx.stroke();
+            }
+            ctx.restore();
+        }
+        function updateInspector() {
+            if (!state.selectedNodeId) {
+                inspectorEmpty.classList.remove('hidden');
+                inspectorContent.classList.add('hidden');
+                return;
+            }
+            const node = getNodeById(state.selectedNodeId);
+            if (!node) {
+                inspectorEmpty.classList.remove('hidden');
+                inspectorContent.classList.add('hidden');
+                return;
+            }
+            inspectorEmpty.classList.add('hidden');
+            inspectorContent.classList.remove('hidden');
+            nodeNameInput.value = node.name;
+            nodeDescInput.value = node.description;
+            propertiesList.innerHTML = '';
+            node.properties.forEach(prop => {
+                const row = document.createElement('div');
+                row.className = 'property-row';
+                const nameInput = document.createElement('input');
+                nameInput.value = prop.name || '';
+                nameInput.addEventListener('input', () => {
+                    prop.name = nameInput.value;
+                });
+                const valueInput = document.createElement('input');
+                valueInput.value = prop.value || '';
+                valueInput.addEventListener('input', () => {
+                    prop.value = valueInput.value;
+                });
+                const deleteBtn = document.createElement('button');
+                deleteBtn.textContent = '删除';
+                deleteBtn.addEventListener('click', () => {
+                    node.properties = node.properties.filter(item => item !== prop);
+                    updateInspector();
+                });
+                row.appendChild(nameInput);
+                row.appendChild(valueInput);
+                row.appendChild(deleteBtn);
+                propertiesList.appendChild(row);
+            });
+        }
+        function onNodeMouseDown(event) {
+            if (event.button !== 0) {
+                return;
+            }
+            event.stopPropagation();
+            const nodeId = event.currentTarget.dataset.id;
+            const node = getNodeById(nodeId);
+            if (!node) {
+                return;
+            }
+            state.dragMoved = false;
+            if (state.selectedNodeIds.size > 1 && state.selectedNodeIds.has(nodeId)) {
+                const mouseWorld = screenToWorld({ x: event.clientX - canvasArea.getBoundingClientRect().left, y: event.clientY - canvasArea.getBoundingClientRect().top });
+                state.draggingNodeId = nodeId;
+                state.dragGroupOffsets = new Map();
+                state.dragStartPointer = { x: mouseWorld.x, y: mouseWorld.y };
+                state.selectedNodeIds.forEach(id => {
+                    const selectedNode = getNodeById(id);
+                    if (selectedNode) {
+                        state.dragGroupOffsets.set(id, {
+                            x: mouseWorld.x - selectedNode.x,
+                            y: mouseWorld.y - selectedNode.y
+                        });
+                    }
+                });
+                return;
+            }
+            const mouseWorld = screenToWorld({ x: event.clientX - canvasArea.getBoundingClientRect().left, y: event.clientY - canvasArea.getBoundingClientRect().top });
+            state.draggingNodeId = nodeId;
+            state.dragOffset = { x: mouseWorld.x - node.x, y: mouseWorld.y - node.y };
+            state.dragStartPointer = { x: mouseWorld.x, y: mouseWorld.y };
+        }
+        function onNodeClick(event) {
+            event.stopPropagation();
+            if (state.dragMoved) {
+                state.dragMoved = false;
+                return;
+            }
+            const nodeId = event.currentTarget.dataset.id;
+            if (event.shiftKey) {
+                addSelectedNode(nodeId);
+            } else {
+                setSelectedNode(nodeId);
+            }
+        }
+        function onNodeMouseEnter(event) {
+            const nodeId = event.currentTarget.dataset.id;
+            const node = getNodeById(nodeId);
+            if (!node || !node.description.trim()) {
+                tooltip.style.opacity = '0';
+                return;
+            }
+            tooltip.textContent = node.description;
+            tooltip.style.opacity = '1';
+        }
+        function onNodeMouseLeave() {
+            tooltip.style.opacity = '0';
+        }
+        function onNodeMouseMove(event) {
+            if (tooltip.style.opacity === '0') {
+                return;
+            }
+            const rect = canvasArea.getBoundingClientRect();
+            tooltip.style.left = `${event.clientX - rect.left + 12}px`;
+            tooltip.style.top = `${event.clientY - rect.top + 12}px`;
+        }
+        function onOutputSlotMouseDown(event) {
+            event.stopPropagation();
+            if (event.button !== 0) {
+                return;
+            }
+            const nodeId = event.currentTarget.parentElement.dataset.id;
+            state.linkMode = { fromNodeId: nodeId };
+            state.selectedEdgeId = null;
+        }
+        function onInputSlotMouseDown(event) {
+            event.stopPropagation();
+            if (event.button !== 0) {
+                return;
+            }
+            if (!state.linkMode) {
+                return;
+            }
+            const targetNodeId = event.currentTarget.parentElement.dataset.id;
+            createEdge(state.linkMode.fromNodeId, targetNodeId);
+            state.linkMode = null;
+            render();
+        }
+        function onCanvasMouseDown(event) {
+            if (event.button === 2) {
+                const rect = canvasArea.getBoundingClientRect();
+                state.draggingCanvas = true;
+                state.dragCanvasStart = { x: event.clientX - rect.left, y: event.clientY - rect.top };
+                state.dragViewStart = { x: state.view.x, y: state.view.y };
+                canvasArea.classList.add('grabbing');
+                return;
+            }
+            if (event.button === 0) {
+                if (state.linkMode && (event.target === canvasArea || event.target === canvas || event.target === nodesLayer)) {
+                    const rect = canvasArea.getBoundingClientRect();
+                    const point = { x: event.clientX - rect.left, y: event.clientY - rect.top };
+                    const world = screenToWorld(point);
+                    const snapped = applySnap(world);
+                    const newNode = createNode(snapped.x - nodeSize.width / 2, snapped.y - nodeSize.height / 2, { name: getIndexedNodeName(state.nodes.length + 1) });
+                    createEdge(state.linkMode.fromNodeId, newNode.id);
+                    state.linkMode = null;
+                    setSelectedNode(newNode.id);
+                    render();
+                    return;
+                }
+                if (event.shiftKey && (event.target === canvasArea || event.target === canvas || event.target === nodesLayer)) {
+                    const rect = canvasArea.getBoundingClientRect();
+                    const startPoint = { x: event.clientX - rect.left, y: event.clientY - rect.top };
+                    state.selecting = true;
+                    state.selectionStart = startPoint;
+                    state.selectionBase = new Set(state.selectedNodeIds);
+                    selectionBox.classList.remove('hidden');
+                    selectionBox.style.left = `${startPoint.x}px`;
+                    selectionBox.style.top = `${startPoint.y}px`;
+                    selectionBox.style.width = '0px';
+                    selectionBox.style.height = '0px';
+                    return;
+                }
+                const hitEdge = findEdgeAtPoint({ x: event.clientX, y: event.clientY });
+                if (hitEdge) {
+                    setSelectedEdge(hitEdge.id);
+                } else {
+                    clearSelection();
+                }
+                if (state.linkMode) {
+                    state.linkMode = null;
+                }
+            }
+        }
+        function onCanvasMouseMove(event) {
+            const rect = canvasArea.getBoundingClientRect();
+            const point = { x: event.clientX - rect.left, y: event.clientY - rect.top };
+            state.pointerWorld = screenToWorld(point);
+            if (state.selecting && state.selectionStart) {
+                const x1 = state.selectionStart.x;
+                const y1 = state.selectionStart.y;
+                const x2 = point.x;
+                const y2 = point.y;
+                const left = Math.min(x1, x2);
+                const top = Math.min(y1, y2);
+                const right = Math.max(x1, x2);
+                const bottom = Math.max(y1, y2);
+                selectionBox.style.left = `${left}px`;
+                selectionBox.style.top = `${top}px`;
+                selectionBox.style.width = `${right - left}px`;
+                selectionBox.style.height = `${bottom - top}px`;
+                const worldA = screenToWorld({ x: left, y: top });
+                const worldB = screenToWorld({ x: right, y: bottom });
+                const minX = Math.min(worldA.x, worldB.x);
+                const minY = Math.min(worldA.y, worldB.y);
+                const maxX = Math.max(worldA.x, worldB.x);
+                const maxY = Math.max(worldA.y, worldB.y);
+                const nextSelection = new Set(state.selectionBase || []);
+                state.nodes.forEach(node => {
+                    const nodeRight = node.x + node.width;
+                    const nodeBottom = node.y + node.height;
+                    const intersect = node.x < maxX && nodeRight > minX && node.y < maxY && nodeBottom > minY;
+                    if (intersect) {
+                        nextSelection.add(node.id);
+                    }
+                });
+                state.selectedNodeIds = nextSelection;
+                const last = Array.from(nextSelection).slice(-1)[0];
+                state.selectedNodeId = last || null;
+                state.selectedEdgeId = null;
+                render();
+                updateInspector();
+                return;
+            }
+            if (state.draggingNodeId) {
+                if (!state.dragMoved && state.dragStartPointer) {
+                    const dx = state.pointerWorld.x - state.dragStartPointer.x;
+                    const dy = state.pointerWorld.y - state.dragStartPointer.y;
+                    if (Math.hypot(dx, dy) > 2) {
+                        state.dragMoved = true;
+                    }
+                }
+                if (state.dragGroupOffsets && state.dragGroupOffsets.size > 0) {
+                    state.dragGroupOffsets.forEach((offset, id) => {
+                        const groupNode = getNodeById(id);
+                        if (groupNode) {
+                            const snapped = applySnap({
+                                x: state.pointerWorld.x - offset.x,
+                                y: state.pointerWorld.y - offset.y
+                            });
+                            groupNode.x = snapped.x;
+                            groupNode.y = snapped.y;
+                        }
+                    });
+                    render();
+                } else {
+                    const node = getNodeById(state.draggingNodeId);
+                    if (node) {
+                        const snapped = applySnap({
+                            x: state.pointerWorld.x - state.dragOffset.x,
+                            y: state.pointerWorld.y - state.dragOffset.y
+                        });
+                        node.x = snapped.x;
+                        node.y = snapped.y;
+                        render();
+                    }
+                }
+                return;
+            }
+            if (state.draggingCanvas) {
+                const dx = (point.x - state.dragCanvasStart.x) / state.view.scale;
+                const dy = (point.y - state.dragCanvasStart.y) / state.view.scale;
+                state.view.x = state.dragViewStart.x + dx;
+                state.view.y = state.dragViewStart.y + dy;
+                render();
+                return;
+            }
+            if (state.linkMode) {
+                render();
+            }
+        }
+        function onCanvasMouseUp() {
+            state.draggingNodeId = null;
+            state.dragGroupOffsets = null;
+            state.dragStartPointer = null;
+            state.draggingCanvas = false;
+            canvasArea.classList.remove('grabbing');
+            if (state.selecting) {
+                state.selecting = false;
+                state.selectionStart = null;
+                state.selectionBase = null;
+                selectionBox.classList.add('hidden');
+            }
+        }
+        function onCanvasClick(event) {
+            if (state.selecting) {
+                return;
+            }
+            if (state.dragMoved) {
+                state.dragMoved = false;
+                return;
+            }
+            if (event.ctrlKey && event.button === 0) {
+                const rect = canvasArea.getBoundingClientRect();
+                const point = { x: event.clientX - rect.left, y: event.clientY - rect.top };
+                const world = screenToWorld(point);
+                const snapped = applySnap(world);
+                const newNode = createNode(snapped.x - nodeSize.width / 2, snapped.y - nodeSize.height / 2, { name: getIndexedNodeName(state.nodes.length + 1) });
+                setSelectedNode(newNode.id);
+                render();
+            }
+        }
+        function onWheel(event) {
+            event.preventDefault();
+            const rect = canvasArea.getBoundingClientRect();
+            const cursor = { x: event.clientX - rect.left, y: event.clientY - rect.top };
+            const worldBefore = screenToWorld(cursor);
+            const delta = event.deltaY > 0 ? -0.1 : 0.1;
+            const nextScale = Math.min(2.5, Math.max(0.3, state.view.scale + delta));
+            state.view.scale = nextScale;
+            state.view.x = cursor.x / nextScale - worldBefore.x;
+            state.view.y = cursor.y / nextScale - worldBefore.y;
+            render();
+        }
+        function onInspectorResizeMove(event) {
+            if (!state.resizingInspector) {
+                return;
+            }
+            const mainWidth = state.inspectorResizeMainWidth || mainArea.clientWidth;
+            const handleWidth = state.inspectorResizeHandleWidth || inspectorResizer.getBoundingClientRect().width;
+            const maxWidth = Math.min(inspectorLimits.max, Math.max(inspectorLimits.min, mainWidth - inspectorLimits.min));
+            const minLeft = mainWidth - handleWidth - maxWidth;
+            const maxLeft = mainWidth - handleWidth - inspectorLimits.min;
+            const desiredLeft = state.inspectorResizeStartLeft + (event.clientX - state.inspectorResizeStartX);
+            const nextLeft = clamp(desiredLeft, minLeft, maxLeft);
+            const nextWidth = mainWidth - handleWidth - nextLeft;
+            sidebar.style.width = `${nextWidth}px`;
+            updateCanvasSize();
+        }
+        function onInspectorResizeUp() {
+            if (!state.resizingInspector) {
+                return;
+            }
+            state.resizingInspector = false;
+            document.body.style.cursor = '';
+            document.body.style.userSelect = '';
+        }
+        function onKeyDown(event) {
+            if (event.key !== 'Delete') {
+                return;
+            }
+            const tag = document.activeElement?.tagName;
+            if (tag === 'INPUT' || tag === 'TEXTAREA') {
+                return;
+            }
+            if (state.selectedEdgeId) {
+                removeEdge(state.selectedEdgeId);
+                return;
+            }
+            if (state.selectedNodeIds.size > 0) {
+                Array.from(state.selectedNodeIds).forEach(id => removeNode(id));
+            }
+        }
+        function onMiddleReset(event) {
+            if (event.button === 1 && event.detail === 2) {
+                state.view = { x: 0, y: 0, scale: 1 };
+                render();
+            }
+        }
+        function findEdgeAtPoint(point) {
+            const rect = canvasArea.getBoundingClientRect();
+            const x = point.x - rect.left;
+            const y = point.y - rect.top;
+            const threshold = 6;
+            for (let i = state.edges.length - 1; i >= 0; i--) {
+                const edge = state.edges[i];
+                const fromNode = getNodeById(edge.from);
+                const toNode = getNodeById(edge.to);
+                if (!fromNode || !toNode) {
+                    continue;
+                }
+                const from = worldToScreen({ x: fromNode.x + fromNode.width / 2, y: fromNode.y + fromNode.height });
+                const to = worldToScreen({ x: toNode.x + toNode.width / 2, y: toNode.y });
+                const dist = distanceToSegment({ x, y }, from, to);
+                if (dist <= threshold) {
+                    return edge;
+                }
+            }
+            return null;
+        }
+        function distanceToSegment(p, v, w) {
+            const l2 = (v.x - w.x) ** 2 + (v.y - w.y) ** 2;
+            if (l2 === 0) {
+                return Math.hypot(p.x - v.x, p.y - v.y);
+            }
+            let t = ((p.x - v.x) * (w.x - v.x) + (p.y - v.y) * (w.y - v.y)) / l2;
+            t = Math.max(0, Math.min(1, t));
+            const proj = { x: v.x + t * (w.x - v.x), y: v.y + t * (w.y - v.y) };
+            return Math.hypot(p.x - proj.x, p.y - proj.y);
+        }
+        function autoLayout() {
+            const incoming = new Map();
+            const outgoing = new Map();
+            state.nodes.forEach(node => {
+                incoming.set(node.id, []);
+                outgoing.set(node.id, []);
+            });
+            state.edges.forEach(edge => {
+                if (incoming.has(edge.to)) {
+                    incoming.get(edge.to).push(edge.from);
+                }
+                if (outgoing.has(edge.from)) {
+                    outgoing.get(edge.from).push(edge.to);
+                }
+            });
+            const roots = state.nodes.filter(node => (incoming.get(node.id) || []).length === 0);
+            const depthCache = new Map();
+            const visiting = new Set();
+            function computeDepth(nodeId) {
+                if (depthCache.has(nodeId)) {
+                    return depthCache.get(nodeId);
+                }
+                if (visiting.has(nodeId)) {
+                    return 0;
+                }
+                visiting.add(nodeId);
+                const parents = incoming.get(nodeId) || [];
+                let depth = 0;
+                if (parents.length > 0) {
+                    depth = Math.max(...parents.map(parentId => computeDepth(parentId) + 1));
+                }
+                visiting.delete(nodeId);
+                depthCache.set(nodeId, depth);
+                return depth;
+            }
+            const maxDepth = new Map();
+            state.nodes.forEach(node => {
+                maxDepth.set(node.id, computeDepth(node.id));
+            });
+            const grouped = new Map();
+            state.nodes.forEach(node => {
+                const level = maxDepth.get(node.id) || 0;
+                if (!grouped.has(level)) {
+                    grouped.set(level, []);
+                }
+                grouped.get(level).push(node);
+            });
+            const verticalSpacing = nodeSize.height + 50;
+            const horizontalSpacing = nodeSize.width + 50;
+            const levelsArray = Array.from(grouped.keys()).sort((a, b) => a - b);
+            function isotonicRegression(targets, weights) {
+                const blocks = [];
+                targets.forEach((target, index) => {
+                    blocks.push({
+                        start: index,
+                        end: index,
+                        weightSum: weights[index],
+                        weightedSum: target * weights[index]
+                    });
+                    while (blocks.length >= 2) {
+                        const last = blocks[blocks.length - 1];
+                        const prev = blocks[blocks.length - 2];
+                        const lastMean = last.weightedSum / last.weightSum;
+                        const prevMean = prev.weightedSum / prev.weightSum;
+                        if (prevMean <= lastMean) {
+                            break;
+                        }
+                        const merged = {
+                            start: prev.start,
+                            end: last.end,
+                            weightSum: prev.weightSum + last.weightSum,
+                            weightedSum: prev.weightedSum + last.weightedSum
+                        };
+                        blocks.splice(blocks.length - 2, 2, merged);
+                    }
+                });
+                const result = new Array(targets.length);
+                blocks.forEach(block => {
+                    const mean = block.weightedSum / block.weightSum;
+                    for (let i = block.start; i <= block.end; i++) {
+                        result[i] = mean;
+                    }
+                });
+                return result;
+            }
+            levelsArray.forEach(level => {
+                const group = grouped.get(level);
+                if (level === 0) {
+                    group.forEach((node, index) => {
+                        const snapped = applySnap({
+                            x: index * horizontalSpacing,
+                            y: level * verticalSpacing
+                        });
+                        node.x = snapped.x;
+                        node.y = snapped.y;
+                    });
+                    return;
+                }
+                const desiredXMap = new Map();
+                const weightMap = new Map();
+                group.forEach(node => {
+                    const parents = incoming.get(node.id) || [];
+                    if (parents.length === 0) {
+                        desiredXMap.set(node.id, 0);
+                        weightMap.set(node.id, 1);
+                        return;
+                    }
+                    let weightedSum = 0;
+                    let totalWeight = 0;
+                    parents.forEach(parentId => {
+                        const parentNode = getNodeById(parentId);
+                        const parentLevel = maxDepth.get(parentId) || 0;
+                        const levelDistance = Math.max(1, level - parentLevel);
+                        const weight = 1 / levelDistance;
+                        if (parentNode) {
+                            weightedSum += parentNode.x * weight;
+                            totalWeight += weight;
+                        }
+                    });
+                    const desiredX = totalWeight > 0 ? weightedSum / totalWeight : 0;
+                    desiredXMap.set(node.id, desiredX);
+                    weightMap.set(node.id, Math.max(1, parents.length));
+                });
+                group.sort((a, b) => {
+                    const ax = desiredXMap.get(a.id) ?? 0;
+                    const bx = desiredXMap.get(b.id) ?? 0;
+                    if (ax !== bx) {
+                        return ax - bx;
+                    }
+                    return a.id.localeCompare(b.id);
+                });
+                const targets = group.map((node, index) => (desiredXMap.get(node.id) ?? 0) - index * horizontalSpacing);
+                const weights = group.map(node => weightMap.get(node.id) ?? 1);
+                const yPositions = isotonicRegression(targets, weights);
+                group.forEach((node, index) => {
+                    const snapped = applySnap({
+                        x: yPositions[index] + index * horizontalSpacing,
+                        y: level * verticalSpacing
+                    });
+                    node.x = snapped.x;
+                    node.y = snapped.y;
+                });
+            });
+            if (roots.length === 0 && state.nodes.length > 0) {
+                state.nodes.forEach((node, index) => {
+                    const snapped = applySnap({
+                        x: 0,
+                        y: index * verticalSpacing
+                    });
+                    node.x = snapped.x;
+                    node.y = snapped.y;
+                });
+            }
+            render();
+        }
+        function rebuildNodeIdsByLayout() {
+            if (state.nodes.length === 0) {
+                return;
+            }
+            const sorted = [...state.nodes].sort((a, b) => {
+                if (a.y !== b.y) {
+                    return a.y - b.y;
+                }
+                if (a.x !== b.x) {
+                    return a.x - b.x;
+                }
+                return a.id.localeCompare(b.id);
+            });
+            const idMap = new Map();
+            sorted.forEach((node, index) => {
+                idMap.set(node.id, `node-${index + 1}`);
+            });
+            const selectedIds = new Set();
+            state.selectedNodeIds.forEach(id => {
+                const nextId = idMap.get(id);
+                if (nextId) {
+                    selectedIds.add(nextId);
+                }
+            });
+            const oldSelectedId = state.selectedNodeId;
+            const oldElements = new Map(nodeElements);
+            state.nodes.forEach(node => {
+                const nextId = idMap.get(node.id);
+                node.id = nextId;
+            });
+            state.edges.forEach(edge => {
+                edge.from = idMap.get(edge.from) || edge.from;
+                edge.to = idMap.get(edge.to) || edge.to;
+            });
+            nodeElements.clear();
+            oldElements.forEach((el, oldId) => {
+                const nextId = idMap.get(oldId);
+                if (nextId) {
+                    el.dataset.id = nextId;
+                    nodeElements.set(nextId, el);
+                }
+            });
+            state.selectedNodeIds = selectedIds;
+            state.selectedNodeId = oldSelectedId ? idMap.get(oldSelectedId) || null : null;
+            nodeIdCounter = state.nodes.length + 1;
+            render();
+            updateInspector();
+        }
+        function serializeData() {
+            return {
+                nodes: state.nodes.map(node => ({
+                    id: node.id,
+                    name: node.name,
+                    description: node.description,
+                    x: node.x,
+                    y: node.y,
+                    properties: node.properties.map(prop => ({
+                        id: prop.id,
+                        name: prop.name,
+                        value: prop.value
+                    }))
+                })),
+                edges: state.edges.map(edge => ({
+                    id: edge.id,
+                    from: edge.from,
+                    to: edge.to
+                }))
+            };
+        }
+        function loadData(data) {
+            state.nodes = (data.nodes || []).map(item => ({
+                id: item.id || `node-${nodeIdCounter++}`,
+                name: item.name || i18n[currentLang].defaults.nodeName,
+                description: item.description || '',
+                x: Number(item.x) || 0,
+                y: Number(item.y) || 0,
+                width: nodeSize.width,
+                height: nodeSize.height,
+                properties: (item.properties || []).map(prop => ({
+                    id: prop.id || `prop-${Math.random().toString(36).slice(2)}`,
+                    name: prop.name || '',
+                    value: prop.value || ''
+                }))
+            }));
+            state.edges = (data.edges || []).map(item => ({
+                id: item.id || `edge-${edgeIdCounter++}`,
+                from: item.from,
+                to: item.to
+            }));
+            nodeIdCounter = state.nodes.length + 1;
+            edgeIdCounter = state.edges.length + 1;
+            state.selectedNodeId = null;
+            state.selectedEdgeId = null;
+            render();
+            updateInspector();
+        }
+        function openHelpPanel() {
+            helpPanel.classList.remove('hidden');
+            helpBackdrop.classList.remove('hidden');
+        }
+        function closeHelpPanel() {
+            helpPanel.classList.add('hidden');
+            helpBackdrop.classList.add('hidden');
+        }
+        nodeNameInput.addEventListener('input', () => {
+            const node = getNodeById(state.selectedNodeId);
+            if (!node) {
+                return;
+            }
+            node.name = nodeNameInput.value;
+            render();
+        });
+        nodeDescInput.addEventListener('input', () => {
+            const node = getNodeById(state.selectedNodeId);
+            if (!node) {
+                return;
+            }
+            node.description = nodeDescInput.value;
+        });
+        addPropBtn.addEventListener('click', () => {
+            const node = getNodeById(state.selectedNodeId);
+            if (!node) {
+                return;
+            }
+            node.properties.push({ id: `prop-${Math.random().toString(36).slice(2)}`, name: '', value: '' });
+            updateInspector();
+        });
+        snapToggle.addEventListener('change', () => {
+            state.snapEnabled = snapToggle.checked;
+        });
+        function applyGridSizeInput() {
+            const value = Math.max(5, Number(gridSizeInput.value) || 20);
+            state.gridSize = value;
+            gridSizeInput.value = value;
+            render();
+        }
+        gridSizeInput.addEventListener('keydown', event => {
+            if (event.key !== 'Enter') {
+                return;
+            }
+            applyGridSizeInput();
+            gridSizeInput.blur();
+        });
+        gridSizeInput.addEventListener('blur', applyGridSizeInput);
+        newBtn.addEventListener('click', () => {
+            const shouldReset = state.nodes.length === 0 || confirm(i18n[currentLang].prompts.confirmNew);
+            if (!shouldReset) {
+                return;
+            }
+            state.nodes = [];
+            state.edges = [];
+            state.selectedNodeId = null;
+            state.selectedNodeIds = new Set();
+            state.selectedEdgeId = null;
+            state.linkMode = null;
+            nodeIdCounter = 1;
+            edgeIdCounter = 1;
+            createNode(100, 100, { name: i18n[currentLang].defaults.rootName, description: i18n[currentLang].defaults.rootDesc });
+            render();
+            updateInspector();
+        });
+        openBtn.addEventListener('click', () => {
+            fileInput.value = '';
+            fileInput.click();
+        });
+        fileInput.addEventListener('change', event => {
+            const file = event.target.files[0];
+            if (!file) {
+                return;
+            }
+            const reader = new FileReader();
+            reader.onload = () => {
+                try {
+                    const data = JSON.parse(reader.result);
+                    loadData(data);
+                } catch (error) {
+                    alert(i18n[currentLang].prompts.alertParseFail);
+                }
+            };
+            reader.readAsText(file);
+        });
+        saveBtn.addEventListener('click', () => {
+            const data = serializeData();
+            const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = 'tree-data.json';
+            document.body.appendChild(link);
+            link.click();
+            link.remove();
+            URL.revokeObjectURL(url);
+        });
+        helpBtn.addEventListener('click', () => {
+            if (helpPanel.classList.contains('hidden')) {
+                openHelpPanel();
+            } else {
+                closeHelpPanel();
+            }
+        });
+        langBtn.addEventListener('click', () => {
+            setLanguage(currentLang === 'en' ? 'zh' : 'en');
+        });
+        helpBackdrop.addEventListener('click', closeHelpPanel);
+        helpClose.addEventListener('click', closeHelpPanel);
+        layoutBtn.addEventListener('click', autoLayout);
+        rebuildIdBtn.addEventListener('click', rebuildNodeIdsByLayout);
+        canvasArea.addEventListener('mousedown', onCanvasMouseDown);
+        canvasArea.addEventListener('mousemove', onCanvasMouseMove);
+        canvasArea.addEventListener('mouseup', onCanvasMouseUp);
+        canvasArea.addEventListener('mouseleave', onCanvasMouseUp);
+        canvasArea.addEventListener('click', onCanvasClick);
+        canvasArea.addEventListener('wheel', onWheel, { passive: false });
+        canvasArea.addEventListener('contextmenu', event => event.preventDefault());
+        canvasArea.addEventListener('mousedown', onMiddleReset);
+        window.addEventListener('keydown', onKeyDown);
+        window.addEventListener('resize', updateCanvasSize);
+        inspectorResizer.addEventListener('mousedown', event => {
+            if (event.button !== 0) {
+                return;
+            }
+            const mainRect = mainArea.getBoundingClientRect();
+            const sidebarRect = sidebar.getBoundingClientRect();
+            const resizerRect = inspectorResizer.getBoundingClientRect();
+            state.inspectorResizeStartX = event.clientX;
+            state.inspectorResizeStartWidth = sidebarRect.width;
+            state.inspectorResizeGrabOffset = event.clientX - resizerRect.left;
+            state.inspectorResizeHandleWidth = resizerRect.width;
+            state.inspectorResizeStartLeft = resizerRect.left - mainRect.left;
+            state.inspectorResizeMainWidth = mainRect.width;
+            state.resizingInspector = true;
+            document.body.style.cursor = 'col-resize';
+            document.body.style.userSelect = 'none';
+        });
+        window.addEventListener('mousemove', onInspectorResizeMove);
+        window.addEventListener('mouseup', onInspectorResizeUp);
+        canvasArea.addEventListener('dragover', event => event.preventDefault());
+        canvasArea.addEventListener('drop', event => {
+            event.preventDefault();
+            const file = event.dataTransfer.files[0];
+            if (!file) {
+                return;
+            }
+            if (!file.name.toLowerCase().endsWith('.json')) {
+                return;
+            }
+            const shouldOverwrite = state.nodes.length === 0 || confirm(i18n[currentLang].prompts.confirmOverwrite);
+            if (!shouldOverwrite) {
+                return;
+            }
+            const reader = new FileReader();
+            reader.onload = () => {
+                try {
+                    const data = JSON.parse(reader.result);
+                    loadData(data);
+                } catch (error) {
+                    alert(i18n[currentLang].prompts.alertParseFail);
+                }
+            };
+            reader.readAsText(file);
+        });
+        function initialize() {
+            updateUiText();
+            createNode(100, 100, { name: i18n[currentLang].defaults.rootName, description: i18n[currentLang].defaults.rootDesc });
+            updateCanvasSize();
+            render();
+            updateInspector();
+        }
+        initialize();
+    </script>
+</body>
+</html>
