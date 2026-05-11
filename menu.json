@@ -11,6 +11,10 @@
       "path": "functions/image-tools/img-2-sdf"
       },
       {
+        "name": "SDF Shadow Threshold",
+        "path": "functions/image-tools/sdf-shadow-threshold-map"
+      },
+      {
         "name": "Gradient Tools",
         "path": "functions/image-tools/gradient-tools"
       },

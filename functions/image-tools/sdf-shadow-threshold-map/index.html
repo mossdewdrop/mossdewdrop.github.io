@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SDF Shadow Threshold Map Generator</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="app-wrapper">
+        <!-- Left sidebar: Image list with drag-drop and sorting -->
+        <aside class="sidebar">
+            <h2>Image List</h2>
+            <div id="drop-zone" class="drop-zone">
+                <p>Drag and drop images here</p>
+                <p class="hint">or click to select files</p>
+            </div>
+            <ul id="image-list" class="image-list">
+                <!-- Images will be added here dynamically -->
+            </ul>
+            <p class="drag-hint">Drag items to reorder</p>
+            <button id="sort-btn" class="sort-button" title="Toggle sort order">Sort: Ascending</button>
+        </aside>
+
+        <!-- Main content: Preview and controls -->
+        <main class="main-content">
+            <h1>SDF Shadow Threshold Map Generator</h1>
+            <p class="description">
+                Generate smooth threshold maps by interpolating between Signed Distance Fields (SDF) of multiple images.
+            </p>
+
+            <!-- Preview area -->
+            <div class="preview-section">
+                <div class="preview-container">
+                    <canvas id="preview-canvas"></canvas>
+                    <div id="preview-placeholder" class="preview-placeholder">
+                        <p>Generated image will appear here</p>
+                    </div>
+                </div>
+
+                <!-- Download button (shown after generation) -->
+                <div id="download-area" class="download-area" style="display: none;">
+                    <button id="download-btn" class="download-button">Download PNG</button>
+                </div>
+            </div>
+
+            <!-- Parameters section -->
+            <div class="parameters-section">
+                <h3>Parameters</h3>
+                <div class="params-grid">
+                    <div class="param-group">
+                        <label for="bit-depth">Bit Depth</label>
+                        <select id="bit-depth">
+                            <option value="8" selected>8-bit</option>
+                            <option value="16">16-bit</option>
+                        </select>
+                    </div>
+
+                    <div class="param-group">
+                        <label for="color-mode">Color Mode</label>
+                        <select id="color-mode">
+                            <option value="gray" selected>Grayscale</option>
+                            <option value="rgb">RGB</option>
+                            <option value="rgba">RGBA (with mask)</option>
+                        </select>
+                    </div>
+
+                    <div class="param-group">
+                        <label for="filter-mode">Filter Mode</label>
+                        <select id="filter-mode">
+                            <option value="none" selected>None</option>
+                            <option value="gaussian">Gaussian Blur</option>
+                            <option value="bilateral">Bilateral Filter</option>
+                        </select>
+                    </div>
+
+                    <div class="param-group" id="gaussian-param" style="display: none;">
+                        <label for="kernel-size">Kernel Size</label>
+                        <input type="number" id="kernel-size" value="3" min="1" max="31" step="2">
+                    </div>
+
+                    <div class="param-group" id="bilateral-param" style="display: none;">
+                        <label for="diameter">Diameter</label>
+                        <input type="number" id="diameter" value="3" min="1" max="20">
+                    </div>
+
+                    <div class="param-group checkbox-group">
+                        <label>
+                            <input type="checkbox" id="reverse">
+                            Reverse Gradient Direction
+                        </label>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Generate button -->
+            <button id="generate-btn" class="generate-button" disabled>Generate Shadow Threshold Map</button>
+        </main>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>
