@@ -49,6 +49,10 @@
     "category": "Others",
     "items": [
       {
+        "name": "3D Dice",
+        "path": "functions/other/3dDice"
+      },
+      {
         "name": "About",
         "path": "functions/other/about"
       }

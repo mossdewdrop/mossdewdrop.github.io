@@ -1,0 +1,1171 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>3D Dice Roller</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            user-select: none;
+            margin: 0;
+            padding: 0;
+        }
+
+        body, html {
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background-color: #0d0f12;
+        }
+
+        #canvas-container {
+            width: 100%;
+            height: 100%;
+            display: block;
+        }
+
+        /* Top UI */
+        .ui-container {
+            position: absolute;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 12px;
+            pointer-events: none;
+            z-index: 10;
+        }
+
+        .score-board {
+            background: rgba(255, 255, 255, 0.18);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.4);
+            border-radius: 20px;
+            padding: 12px 42px;
+            color: #ffffff;
+            text-align: center;
+        }
+
+        .score-label {
+            font-size: 13px;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            color: rgba(255, 255, 255, 0.85);
+            margin-bottom: 2px;
+        }
+
+        .score-value {
+            font-size: 52px;
+            font-weight: 800;
+            line-height: 1;
+            text-shadow: 0 2px 10px rgba(0, 0, 0, 0.4);
+            color: #ffffff;
+        }
+
+        .controls {
+            display: flex;
+            gap: 12px;
+            pointer-events: auto;
+        }
+
+        .btn {
+            background: rgba(30, 30, 30, 0.75);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.25);
+            color: #fff;
+            padding: 8px 22px;
+            border-radius: 20px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+        }
+
+        .btn:hover {
+            background: rgba(255, 255, 255, 0.3);
+            transform: translateY(-2px);
+        }
+
+        .btn:active {
+            transform: translateY(0);
+        }
+
+        /* Sound toggle button (top right) */
+        .sound-btn {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            width: 44px;
+            height: 44px;
+            padding: 0;
+            border-radius: 50%;
+            font-size: 18px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 10;
+        }
+
+        .sound-btn.off {
+            background: rgba(255, 60, 60, 0.45);
+            border-color: rgba(255, 100, 100, 0.6);
+        }
+
+        .tip {
+            position: absolute;
+            bottom: 24px;
+            left: 50%;
+            transform: translateX(-50%);
+            color: rgba(255, 255, 255, 0.85);
+            font-size: 14px;
+            letter-spacing: 1px;
+            pointer-events: none;
+            background: rgba(0, 0, 0, 0.55);
+            padding: 8px 22px;
+            border-radius: 20px;
+            backdrop-filter: blur(6px);
+            border: 1px solid rgba(255, 255, 255, 0.12);
+        }
+
+        /* Decision panel (left) */
+        .decision-panel {
+            position: absolute;
+            left: 20px;
+            top: 50%;
+            transform: translateY(-50%);
+            width: 270px;
+            background: rgba(255, 255, 255, 0.12);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border: 1px solid rgba(255, 255, 255, 0.22);
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.3);
+            border-radius: 16px;
+            padding: 16px 14px;
+            z-index: 10;
+        }
+
+        .decision-header {
+            color: #ffffff;
+            font-size: 13px;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            text-align: center;
+            margin-bottom: 10px;
+        }
+
+        .decision-list {
+            display: flex;
+            flex-direction: column;
+            gap: 7px;
+        }
+
+        .decision-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 6px 10px;
+            background: rgba(0, 0, 0, 0.25);
+            border: 1px solid rgba(255, 255, 255, 0.14);
+            border-radius: 10px;
+            transition: all 0.3s ease;
+        }
+
+        .decision-num {
+            flex: none;
+            width: 22px;
+            height: 22px;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.15);
+            color: #ffffff;
+            font-size: 12px;
+            font-weight: 700;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .decision-input {
+            flex: 1;
+            min-width: 0;
+            background: transparent;
+            border: none;
+            outline: none;
+            color: #ffffff;
+            font-size: 14px;
+        }
+
+        .decision-input::placeholder {
+            color: rgba(255, 255, 255, 0.45);
+        }
+
+        .decision-item.active {
+            border-color: #ffd700;
+            background: rgba(255, 215, 0, 0.16);
+            box-shadow: 0 0 16px rgba(255, 215, 0, 0.55), inset 0 0 8px rgba(255, 215, 0, 0.15);
+        }
+
+        .decision-item.active .decision-num {
+            background: #ffd700;
+            color: #1a1200;
+        }
+
+        @media (max-width: 900px) {
+            .decision-panel {
+                left: 10px;
+                top: auto;
+                bottom: 72px;
+                transform: none;
+                width: 220px;
+                padding: 12px 10px;
+            }
+        }
+
+        #error-log {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            color: #ff5555;
+            background: rgba(0,0,0,0.85);
+            padding: 12px;
+            border-radius: 8px;
+            display: none;
+            z-index: 100;
+            font-family: monospace;
+            max-width: 80%;
+            word-break: break-all;
+        }
+    </style>
+
+    <script type="importmap">
+        {
+            "imports": {
+                "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+                "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/",
+                "cannon-es": "https://unpkg.com/cannon-es@0.20.0/dist/cannon-es.js"
+            }
+        }
+    </script>
+</head>
+<body>
+
+    <div id="error-log"></div>
+
+    <div class="ui-container">
+        <div class="score-board">
+            <div class="score-label">Total Dice Points</div>
+            <div class="score-value" id="total-score">0</div>
+        </div>
+        <div class="controls">
+            <button class="btn" id="reset-btn">Clear Dice</button>
+        </div>
+    </div>
+
+    <button class="btn sound-btn" id="sound-btn" title="Toggle sound">🔊</button>
+
+    <div class="decision-panel">
+        <div class="decision-header">Decisions</div>
+        <div class="decision-list" id="decision-list"></div>
+    </div>
+
+    <div class="tip">🎲 Click anywhere to roll a dice into the bowl</div>
+
+    <div id="canvas-container"></div>
+
+    <script type="module">
+        import * as THREE from 'three';
+        import * as CANNON from 'cannon-es';
+        import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
+        import { SSAOPass } from 'three/addons/postprocessing/SSAOPass.js';
+        import { SSRPass } from 'three/addons/postprocessing/SSRPass.js';
+        import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
+        import { ShaderPass } from 'three/addons/postprocessing/ShaderPass.js';
+        import { Sky } from 'three/addons/objects/Sky.js';
+
+        window.addEventListener('error', (e) => {
+            const log = document.getElementById('error-log');
+            log.style.display = 'block';
+            log.innerText = 'Runtime Error: ' + e.message;
+        });
+
+        // ===== PCSS soft shadows =====
+        // Override three's default PCF shadow sampling by injecting a custom PCSS shader:
+        // first run a blocker search to get the average occluder depth, then compute the
+        // penumbra width based on the distance between the occluder and the receiver
+        // (farther = softer), and finally apply PCF filtering with Poisson sampling.
+        // Tuning: larger LIGHT_WORLD_SIZE makes shadows softer overall; LIGHT_FRUSTUM_WIDTH must equal
+        // the directional light shadow camera frustum width (-5 to 5, i.e. 10).
+        function enablePCSS() {
+            const pcssChunk = /* glsl */`
+                #define LIGHT_WORLD_SIZE 0.3
+                #define LIGHT_FRUSTUM_WIDTH 10.0
+                #define LIGHT_SIZE_UV ( LIGHT_WORLD_SIZE / LIGHT_FRUSTUM_WIDTH )
+                #define SHADOW_CAMERA_NEAR 0.5
+                #define SHADOW_CAMERA_FAR 30.0
+                #define BLOCKER_SEARCH_NUM_SAMPLES 17
+                #define NUM_SAMPLES 17
+                #define NUM_RINGS 11
+                vec2 poissonDisk[NUM_SAMPLES];
+                void initPoissonSamples( in vec2 randomSeed ) {
+                    float ANGLE_STEP = PI2 * float( NUM_RINGS ) / float( NUM_SAMPLES );
+                    float INV_NUM_SAMPLES = 1.0 / float( NUM_SAMPLES );
+                    float angle = rand( randomSeed ) * PI2;
+                    float radius = INV_NUM_SAMPLES;
+                    float radiusStep = radius;
+                    for ( int i = 0; i < NUM_SAMPLES; i ++ ) {
+                        poissonDisk[ i ] = vec2( cos( angle ), sin( angle ) ) * pow( radius, 0.75 );
+                        radius += radiusStep;
+                        angle += ANGLE_STEP;
+                    }
+                }
+                // The shadow depth map stores normalized [0,1] depth; convert it to eye-space distance
+                // along the light direction so the penumbra can be computed in real-world units
+                float shadowZToEye( in float zNdc ) {
+                    return zNdc * ( SHADOW_CAMERA_FAR - SHADOW_CAMERA_NEAR ) + SHADOW_CAMERA_NEAR;
+                }
+                // STEP 1: blocker search - find the average occluder depth within the area the penumbra may cover
+                float findBlocker( in sampler2D shadowMap, in vec2 uv, in float zEye ) {
+                    float searchRadius = LIGHT_SIZE_UV * ( zEye - SHADOW_CAMERA_NEAR ) / zEye;
+                    float blockerDepthSum = 0.0;
+                    int numBlockers = 0;
+                    for ( int i = 0; i < BLOCKER_SEARCH_NUM_SAMPLES; i ++ ) {
+                        float mapDepthEye = shadowZToEye( unpackRGBAToDepth( texture2D( shadowMap, uv + poissonDisk[ i ] * searchRadius ) ) );
+                        if ( mapDepthEye < zEye ) {
+                            blockerDepthSum += mapDepthEye;
+                            numBlockers ++;
+                        }
+                    }
+                    if ( numBlockers == 0 ) return -1.0;
+                    return blockerDepthSum / float( numBlockers );
+                }
+                // STEP 2: penumbra size - the farther the occluder from the receiver, the wider the penumbra (distance falloff)
+                float penumbraSize( in float zEye, in float zBlockerEye ) {
+                    return ( zEye - zBlockerEye ) / zBlockerEye;
+                }
+                // STEP 3: use the penumbra width as the Poisson sampling radius for PCF filtering
+                float PCF_Filter( in sampler2D shadowMap, in vec2 uv, in float zNdc, in float filterRadius ) {
+                    float sum = 0.0;
+                    float depth;
+                    #pragma unroll_loop_start
+                    for ( int i = 0; i < 17; i ++ ) {
+                        depth = unpackRGBAToDepth( texture2D( shadowMap, uv + poissonDisk[ i ] * filterRadius ) );
+                        if ( zNdc <= depth ) sum += 1.0;
+                    }
+                    #pragma unroll_loop_end
+                    #pragma unroll_loop_start
+                    for ( int i = 0; i < 17; i ++ ) {
+                        depth = unpackRGBAToDepth( texture2D( shadowMap, uv + - poissonDisk[ i ].yx * filterRadius ) );
+                        if ( zNdc <= depth ) sum += 1.0;
+                    }
+                    #pragma unroll_loop_end
+                    return sum / ( 2.0 * float( 17 ) );
+                }
+                float PCSS( in sampler2D shadowMap, in vec4 coords ) {
+                    vec2 uv = coords.xy;
+                    float zNdc = coords.z; // normalized depth [0,1]
+                    float zEye = shadowZToEye( zNdc );
+                    initPoissonSamples( uv );
+                    float avgBlockerDepthEye = findBlocker( shadowMap, uv, zEye );
+                    if ( avgBlockerDepthEye == -1.0 ) return 1.0; // no occluder, return fully lit
+                    float filterRadius = penumbraSize( zEye, avgBlockerDepthEye ) * LIGHT_SIZE_UV;
+                    return PCF_Filter( shadowMap, uv, zNdc, filterRadius );
+                }
+            `;
+
+            // Inject the PCSS functions into the USE_SHADOWMAP block (same scope as getShadow)
+            let shader = THREE.ShaderChunk.shadowmap_pars_fragment;
+            shader = shader.replace(
+                '#ifdef USE_SHADOWMAP',
+                '#ifdef USE_SHADOWMAP\n' + pcssChunk
+            );
+            // Replace the first line of getShadow's PCF branch with PCSS sampling
+            shader = shader.replace(
+                '#if defined( SHADOWMAP_TYPE_PCF )',
+                '#if defined( SHADOWMAP_TYPE_PCF )\nreturn PCSS( shadowMap, shadowCoord );'
+            );
+            THREE.ShaderChunk.shadowmap_pars_fragment = shader;
+        }
+
+        let scene, camera, renderer, world;
+        let composer, ssaoPass, ssrPass;
+        let bowlMesh;
+        let diceArray = [];
+        const scoreElement = document.getElementById('total-score');
+        const resetButton = document.getElementById('reset-btn');
+
+        // Decision panel
+        const decisionList = document.getElementById('decision-list');
+        const DECISION_COUNT = 6;
+
+        let diceMaterialPhysics, floorMaterialPhysics, bowlMaterialPhysics;
+        let diceTextures = [];
+
+        // Dice dot layout (0-1 coordinates within a face)
+        const dotsLayout = {
+            1: [[0.5, 0.5]],
+            2: [[0.25, 0.25], [0.75, 0.75]],
+            3: [[0.25, 0.25], [0.5, 0.5], [0.75, 0.75]],
+            4: [[0.25, 0.25], [0.75, 0.25], [0.25, 0.75], [0.75, 0.75]],
+            5: [[0.25, 0.25], [0.75, 0.25], [0.5, 0.5], [0.25, 0.75], [0.75, 0.75]],
+            6: [[0.25, 0.22], [0.75, 0.22], [0.25, 0.5], [0.75, 0.5], [0.25, 0.78], [0.75, 0.78]]
+        };
+
+        // Sound system
+        let audioCtx;
+        let soundEnabled = true;
+        const soundButton = document.getElementById('sound-btn');
+
+        // Dice impact sound: high-pass-filtered noise transient (crisp "click") + short porcelain bowl resonance "ding"
+        function playImpactSound(intensity) {
+            if (!soundEnabled) return;
+            if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            if (audioCtx.state === 'suspended') audioCtx.resume();
+            if (intensity < 0.15) return;
+
+            const t = audioCtx.currentTime;
+            const vol = Math.min(intensity * 0.16, 0.4);
+
+            // 1. Noise transient: simulates the "click" at impact; high-pass removes low frequencies for a bright, crisp sound
+            const noiseDur = 0.012 + Math.random() * 0.012;
+            const bufSize = Math.max(1, Math.floor(audioCtx.sampleRate * noiseDur));
+            const buffer = audioCtx.createBuffer(1, bufSize, audioCtx.sampleRate);
+            const data = buffer.getChannelData(0);
+            for (let i = 0; i < bufSize; i++) data[i] = (Math.random() * 2 - 1) * (1 - i / bufSize);
+
+            const noiseSrc = audioCtx.createBufferSource();
+            noiseSrc.buffer = buffer;
+            const hp = audioCtx.createBiquadFilter();
+            hp.type = 'highpass';
+            hp.frequency.value = 2200;
+            const noiseGain = audioCtx.createGain();
+            noiseGain.gain.setValueAtTime(vol * 0.7, t);
+            noiseGain.gain.exponentialRampToValueAtTime(0.001, t + noiseDur);
+            noiseSrc.connect(hp);
+            hp.connect(noiseGain);
+            noiseGain.connect(audioCtx.destination);
+            noiseSrc.start(t);
+
+            // 2. Porcelain resonance: 2-3 high-frequency sines with a short decay "ding"; randomized frequencies prevent repetition
+            const freqs = [850 + Math.random() * 250, 1550 + Math.random() * 350, 2700 + Math.random() * 500];
+            freqs.forEach((f, i) => {
+                const osc = audioCtx.createOscillator();
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(f * (1 + Math.random() * 0.03), t);
+                const g = audioCtx.createGain();
+                const v = vol * 0.3 * (1 - i * 0.28);
+                g.gain.setValueAtTime(v, t);
+                g.gain.exponentialRampToValueAtTime(0.001, t + 0.05 + Math.random() * 0.05);
+                osc.connect(g);
+                g.connect(audioCtx.destination);
+                osc.start(t);
+                osc.stop(t + 0.14);
+            });
+        }
+
+        // Sound toggle (top right)
+        soundButton.addEventListener('click', () => {
+            soundEnabled = !soundEnabled;
+            soundButton.textContent = soundEnabled ? '🔊' : '🔇';
+            soundButton.classList.toggle('off', !soundEnabled);
+            if (soundEnabled && audioCtx && audioCtx.state === 'suspended') audioCtx.resume();
+        });
+
+        // Decision panel: 6 decision input fields
+        function createDecisionPanel() {
+            for (let i = 0; i < DECISION_COUNT; i++) {
+                const item = document.createElement('div');
+                item.className = 'decision-item';
+
+                const num = document.createElement('span');
+                num.className = 'decision-num';
+                num.textContent = i + 1;
+
+                const input = document.createElement('input');
+                input.type = 'text';
+                input.className = 'decision-input';
+                input.maxLength = 40;
+                input.placeholder = 'Decision ' + (i + 1);
+
+                item.appendChild(num);
+                item.appendChild(input);
+                decisionList.appendChild(item);
+            }
+        }
+
+        // Highlight the final decision (decision ranges 1-6)
+        function highlightDecision(decision) {
+            const items = decisionList.children;
+            for (let i = 0; i < items.length; i++) {
+                items[i].classList.toggle('active', i === decision - 1);
+            }
+        }
+
+        function clearDecisionHighlight() {
+            const items = decisionList.children;
+            for (let i = 0; i < items.length; i++) {
+                items[i].classList.remove('active');
+            }
+        }
+
+        // Clear highlight when dice are cleared / a new throw is made
+        function resetDecisionState() {
+            clearDecisionHighlight();
+        }
+
+        function init() {
+            const container = document.getElementById('canvas-container');
+
+            // PCSS shader must be injected before any material is compiled
+            enablePCSS();
+
+            renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+            renderer.shadowMap.enabled = true;
+            // PCSS needs the PCF branch (the PCSS shader injection point); PCFSoftShadowMap is no longer used
+            renderer.shadowMap.type = THREE.PCFShadowMap;
+            renderer.toneMapping = THREE.ACESFilmicToneMapping;
+            renderer.toneMappingExposure = 1.05;
+            container.appendChild(renderer.domElement);
+
+            scene = new THREE.Scene();
+            scene.background = new THREE.Color(0x0d0f12);
+
+            camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 100);
+            camera.position.set(0, 11.5, 10.5);
+            camera.lookAt(0, 0.9, 0);
+
+            // High-precision physics world settings
+            world = new CANNON.World();
+            world.gravity.set(0, -22, 0);
+            world.broadphase = new CANNON.NaiveBroadphase();
+            world.solver.iterations = 25; // high-precision solver iterations
+
+            diceMaterialPhysics = new CANNON.Material('dice');
+            floorMaterialPhysics = new CANNON.Material('floor');
+            bowlMaterialPhysics = new CANNON.Material('bowl');
+
+            // Contact properties: low friction on the bowl wall so dice slide down and settle at the bottom; low restitution to avoid bouncing
+            world.addContactMaterial(new CANNON.ContactMaterial(diceMaterialPhysics, floorMaterialPhysics, { friction: 0.5, restitution: 0.2 }));
+            world.addContactMaterial(new CANNON.ContactMaterial(diceMaterialPhysics, bowlMaterialPhysics, { friction: 0.1, restitution: 0.10 }));
+            world.addContactMaterial(new CANNON.ContactMaterial(diceMaterialPhysics, diceMaterialPhysics, { friction: 0.2, restitution: 0.2 }));
+
+            setupLights();
+            diceTextures = createDiceTextures();
+            createDecisionPanel();
+
+            createTable();
+            createBowl();
+            createSky();
+
+            // Post-processing pipeline: SSR (screen-space reflections, applied to the bowl's glaze) → SSAO → tone-mapped output
+            // Note the order: SSRPass overwrites its own beauty render buffer, so it must come before SSAO
+            composer = new EffectComposer(renderer);
+
+            ssrPass = new SSRPass({
+                renderer,
+                scene,
+                camera,
+                width: window.innerWidth,
+                height: window.innerHeight,
+                selects: [bowlMesh],
+                groundReflector: null
+            });
+            ssrPass.maxDistance = 1.2;   // max ray trace distance; smaller decays faster, distant reflections fade out sooner
+            ssrPass.thickness = 0.25;    // depth threshold preventing rays from piercing the bowl wall (cracks/artifacts)
+            ssrPass.opacity = 0.9;       // reflection strength (decays quadratically with distance)
+            composer.addPass(ssrPass);
+
+            ssaoPass = new SSAOPass(scene, camera, window.innerWidth, window.innerHeight);
+            // Narrow the AO range: keep only contact darkening (dice pips, contact surfaces) to avoid darkening the whole concave bowl
+            ssaoPass.kernelRadius = 0.2;
+            ssaoPass.minDistance = 0.001;
+            ssaoPass.maxDistance = 0.15;
+            ssaoPass.output = SSAOPass.OUTPUT.Default;
+            composer.addPass(ssaoPass);
+
+            composer.addPass(new OutputPass());
+
+            // Additional contrast pass (after ACES tone-mapping output, fine-tuned in sRGB space)
+            // 1.0 = original, 1.1 = 10% contrast boost
+            const ContrastShaderDef = {
+                uniforms: {
+                    'tDiffuse': { value: null },
+                    'contrast': { value: 1.1 }
+                },
+                vertexShader: `
+                    varying vec2 vUv;
+                    void main() {
+                        vUv = uv;
+                        gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+                    }`,
+                fragmentShader: `
+                    uniform sampler2D tDiffuse;
+                    uniform float contrast;
+                    varying vec2 vUv;
+                    void main() {
+                        vec4 texel = texture2D(tDiffuse, vUv);
+                        texel.rgb = mix(vec3(0.5), texel.rgb, contrast);
+                        gl_FragColor = texel;
+                    }`
+            };
+            const contrastPass = new ShaderPass(ContrastShaderDef);
+            composer.addPass(contrastPass);
+
+            window.addEventListener('resize', onWindowResize);
+            window.addEventListener('pointerdown', onPointerDown);
+            resetButton.addEventListener('click', clearAllDice);
+
+            animate();
+        }
+
+        function setupLights() {
+            // Sunlight from the upper left: the main directional light that casts all shadows (ambient light is provided by sky IBL, see createSky)
+            const sun = new THREE.DirectionalLight(0xfff2df, 2.4);
+            sun.position.set(-7, 12, 6);
+            sun.target.position.set(0, 0.9, 0);
+            sun.castShadow = true;
+            sun.shadow.mapSize.set(2048, 2048);
+            sun.shadow.camera.near = 0.5;
+            sun.shadow.camera.far = 30;
+            sun.shadow.camera.left = -5;
+            sun.shadow.camera.right = 5;
+            sun.shadow.camera.top = 5;
+            sun.shadow.camera.bottom = -5;
+            sun.shadow.bias = -0.0002;
+            sun.shadow.normalBias = 0.02;
+            scene.add(sun);
+            scene.add(sun.target);
+
+            // Low-intensity cool fill light on the right: softens pitch-black shadows and keeps the bowl interior visible
+            const fill = new THREE.DirectionalLight(0x9db8ff, 0.35);
+            fill.position.set(6, 5, -4);
+            scene.add(fill);
+
+            // Soft top light: illuminates the bowl interior and dice from directly above; decay=0 disables
+            // physical falloff, otherwise the point light would be nearly useless at distance 6.5 with quadratic attenuation
+            const topLight = new THREE.PointLight(0xffffff, 1.3, 9);
+            topLight.position.set(0, 6.5, 0);
+            topLight.decay = 0;
+            scene.add(topLight);
+        }
+
+        // Procedural sky: atmospheric scattering (Preetham analytic model) + sky environment light (IBL)
+        function createSky() {
+            // 1. Atmospheric-scattering skybox as the scene background (camera sits inside the box, faces land within the far clip plane)
+            const sky = new Sky();
+            sky.scale.setScalar(60);
+            const uniforms = sky.material.uniforms;
+            uniforms.turbidity.value = 5;          // atmospheric turbidity: smaller = clearer
+            uniforms.rayleigh.value = 2.5;         // Rayleigh scattering: controls sky blue intensity
+            uniforms.mieCoefficient.value = 0.004; // Mie scattering: haze and solar glow
+            uniforms.mieDirectionalG.value = 0.75; // scattering asymmetry factor: glow strength around the sun
+            // Sun direction matches the main directional light (from origin toward sun position (-7,12,6))
+            uniforms.sunPosition.value.copy(new THREE.Vector3(-7, 12, 6).normalize());
+            scene.add(sky);
+
+            // 2. Bake the sky into a PMREM environment map to provide IBL ambient light for the whole scene
+            const pmremGenerator = new THREE.PMREMGenerator(renderer);
+            const skyScene = new THREE.Scene();
+            const probe = new Sky();
+            probe.scale.setScalar(60);
+            probe.material = sky.material; // shares uniforms with the background sky
+            skyScene.add(probe);
+            const envTex = pmremGenerator.fromScene(skyScene, 0, 0.1, 200).texture;
+            pmremGenerator.dispose();
+            scene.environment = envTex;
+
+            // r160 has no scene.environmentIntensity yet, so tune each material's environment absorption individually
+            scene.traverse(obj => {
+                const mat = obj.material;
+                if (mat && (mat.isMeshStandardMaterial || mat.isMeshPhysicalMaterial)) {
+                    mat.envMapIntensity = 0.45;
+                }
+            });
+            // Dice materials are shared instances and no dice meshes exist yet, so set them separately
+            diceTextures.forEach(m => { m.envMapIntensity = 0.45; });
+        }
+
+        function createTable() {
+            // Widened table top: ensures coverage of the entire frustum (including ultrawide screens)
+            // so the sky no longer shows in the background, avoiding white sky clashing with white UI text/frosted panels
+            const tableSize = 100;
+
+            const canvas = document.createElement('canvas');
+            canvas.width = 512;
+            canvas.height = 512;
+            const ctx = canvas.getContext('2d');
+            
+            ctx.fillStyle = '#3a200a';
+            ctx.fillRect(0, 0, 512, 512);
+            ctx.fillStyle = '#241304';
+            for (let i = 0; i < 300; i++) {
+                ctx.fillRect(0, Math.random() * 512, 512, Math.random() * 2 + 1);
+            }
+
+            const tableTexture = new THREE.CanvasTexture(canvas);
+            tableTexture.wrapS = THREE.RepeatWrapping;
+            tableTexture.wrapT = THREE.RepeatWrapping;
+            // Wood-grain density matches the original: 4 tiles over 20 units, i.e. one tile every 5 units
+            tableTexture.repeat.set(tableSize / 5, tableSize / 5);
+
+            const tableGeo = new THREE.BoxGeometry(tableSize, 0.2, tableSize);
+            const tableMat = new THREE.MeshStandardMaterial({
+                map: tableTexture,
+                roughness: 0.45,
+                metalness: 0.05
+            });
+
+            const tableMesh = new THREE.Mesh(tableGeo, tableMat);
+            tableMesh.position.y = -0.1;
+            tableMesh.receiveShadow = true;
+            scene.add(tableMesh);
+
+            const floorBody = new CANNON.Body({
+                mass: 0,
+                shape: new CANNON.Plane(),
+                material: floorMaterialPhysics
+            });
+            floorBody.quaternion.setFromEuler(-Math.PI / 2, 0, 0);
+            world.addBody(floorBody);
+        }
+
+        // Create an indestructible porcelain bowl physics collider
+        function createBowl() {
+            const radius = 3.0;
+            const height = 2.2;
+
+            // 1. Visual Mesh (the bowl bottom sits strictly above the tabletop y=0)
+            const points = [];
+            points.push(new THREE.Vector2(1.2, 0.01)); // bowl foot contact point
+            points.push(new THREE.Vector2(1.3, 0.12));
+            points.push(new THREE.Vector2(0, 0.20));
+
+            for (let i = 1; i <= 20; i++) {
+                const t = i / 20;
+                const x = Math.pow(t, 1.2) * radius;
+                const y = 0.20 + Math.pow(t, 1.8) * (height - 0.20);
+                points.push(new THREE.Vector2(x, y));
+            }
+
+            points.push(new THREE.Vector2(radius + 0.15, height));
+            points.push(new THREE.Vector2(radius + 0.18, height - 0.1));
+
+            for (let i = 20; i >= 0; i--) {
+                const t = i / 20;
+                const x = 1.3 + Math.pow(t, 1.3) * (radius + 0.18 - 1.3);
+                const y = 0.12 + Math.pow(t, 1.8) * (height - 0.22);
+                points.push(new THREE.Vector2(x, y));
+            }
+
+            const bowlGeo = new THREE.LatheGeometry(points, 64);
+            const bowlMat = new THREE.MeshPhysicalMaterial({
+                color: 0xf4f0e6,
+                roughness: 0.12,
+                metalness: 0.05,
+                clearcoat: 0.9,
+                clearcoatRoughness: 0.1
+            });
+
+            bowlMesh = new THREE.Mesh(bowlGeo, bowlMat);
+            bowlMesh.castShadow = true;
+            bowlMesh.receiveShadow = true;
+            scene.add(bowlMesh);
+
+            // Gold rim
+            const ringGeo = new THREE.TorusGeometry(radius + 0.08, 0.045, 16, 64);
+            const ringMat = new THREE.MeshStandardMaterial({
+                color: 0xd4af37,
+                metalness: 0.95,
+                roughness: 0.15
+            });
+            const ringMesh = new THREE.Mesh(ringGeo, ringMat);
+            ringMesh.rotation.x = Math.PI / 2;
+            ringMesh.position.y = height;
+            ringMesh.castShadow = true;
+            scene.add(ringMesh);
+
+            // 2. CANNON physics collider: thickened rigid boxes stacked along the bowl's inner-wall profile
+            //    The boxes' inner faces exactly match the wall profile curve (the same curve as the visual mesh),
+            //    with a total radial thickness of 1.2 and seamless circumferential/vertical overlap to prevent dice clipping through
+            const bowlBody = new CANNON.Body({
+                mass: 0,
+                material: bowlMaterialPhysics
+            });
+
+            const segments = 32;   // circumferential segments
+            const slices = 12;     // vertical slices
+            const halfT = 0.6;     // radial half-thickness (1.2 total, thickened to prevent penetration)
+            const halfW = 0.55;    // circumferential half-width (1.1 total, circumferential overlap with no gaps)
+
+            // Sample the bowl's inner-wall profile points (r, y), using the same curve as the visual LatheGeometry
+            const pts = [];
+            for (let i = 0; i <= slices; i++) {
+                const t = i / slices;
+                pts.push({
+                    r: Math.pow(t, 1.2) * radius,
+                    y: 0.20 + Math.pow(t, 1.8) * (height - 0.20)
+                });
+            }
+
+            for (let i = 0; i < segments; i++) {
+                const angle = (i / segments) * Math.PI * 2;
+                const cosA = Math.cos(angle);
+                const sinA = Math.sin(angle);
+                const yaw = -angle + Math.PI / 2; // align the box's local +Z radially outward
+
+                for (let s = 0; s < slices; s++) {
+                    const p0 = pts[s];
+                    const p1 = pts[s + 1];
+                    const dr = p1.r - p0.r;
+                    const dy = p1.y - p0.y;
+                    const len = Math.sqrt(dr * dr + dy * dy) || 0.001;
+
+                    // Tilt of the profile chord relative to vertical (wall leans outward)
+                    const tilt = Math.atan2(dr, dy);
+                    // Outward normal direction (radial component, vertical component)
+                    const nx = Math.cos(tilt);
+                    const ny = -Math.sin(tilt);
+
+                    // Box center = chord midpoint + half-thickness × outward normal, so the inner face lies exactly on the profile chord
+                    const rMid = (p0.r + p1.r) / 2 + halfT * nx;
+                    const yMid = (p0.y + p1.y) / 2 + halfT * ny;
+
+                    const wallShape = new CANNON.Box(new CANNON.Vec3(halfW, (len + 0.08) / 2, halfT));
+                    const q = new CANNON.Quaternion();
+                    q.setFromEuler(tilt, yaw, 0, 'YXZ');
+
+                    bowlBody.addShape(wallShape, new CANNON.Vec3(rMid * cosA, yMid, rMid * sinA), q);
+                }
+            }
+
+            world.addBody(bowlBody);
+        }
+
+        function createDiceTextures() {
+            const materials = [];
+            const faceValues = [1, 6, 2, 5, 3, 4];
+
+            faceValues.forEach(val => {
+                const canvas = document.createElement('canvas');
+                canvas.width = 256;
+                canvas.height = 256;
+                const ctx = canvas.getContext('2d');
+
+                // Ivory-white base to avoid blowing out to harsh pure white under highlights
+                ctx.fillStyle = '#f7f5f1';
+                ctx.fillRect(0, 0, 256, 256);
+
+                ctx.strokeStyle = 'rgba(0,0,0,0.06)';
+                ctx.lineWidth = 14;
+                ctx.strokeRect(0, 0, 256, 256);
+
+                const dotColor = (val === 1) ? '#cc2222' : '#222222';
+                const radius = (val === 1) ? 38 : 22;
+
+                ctx.fillStyle = dotColor;
+                const coords = dotsLayout[val];
+                coords.forEach(([x, y]) => {
+                    ctx.beginPath();
+                    ctx.arc(x * 256, y * 256, radius, 0, Math.PI * 2);
+                    ctx.fill();
+                });
+
+                const texture = new THREE.CanvasTexture(canvas);
+                materials.push(new THREE.MeshStandardMaterial({
+                    map: texture,
+                    roughness: 0.35,
+                    metalness: 0.05
+                }));
+            });
+
+            return materials;
+        }
+
+        // Chamfered dice geometry: rounded box (flat regions keep all vertices) + geometric dents at the pip positions
+        function createDiceGeometry(size) {
+            const segments = 14;     // even segment count so face centers have mesh vertices
+            const chamfer = 0.05;    // chamfer radius
+            const dentDepth = 0.028; // pip dent depth
+
+            const geo = new THREE.BoxGeometry(size, size, size, segments, segments, segments);
+            const pos = geo.attributes.position;
+            const nor = geo.attributes.normal;
+            const uv = geo.attributes.uv;
+            const count = pos.count;
+            const half = size / 2;
+            const b = half - chamfer; // inner box half-size
+
+            const posArr = pos.array;
+            const norArr = nor.array;
+
+            // Step 1: chamfer projection. Flat-region vertex positions/normals stay; edges and corners project onto the rounded surface
+            for (let i = 0; i < count; i++) {
+                const x = posArr[i * 3], y = posArr[i * 3 + 1], z = posArr[i * 3 + 2];
+                const qx = Math.max(-b, Math.min(b, x));
+                const qy = Math.max(-b, Math.min(b, y));
+                const qz = Math.max(-b, Math.min(b, z));
+                const dx = x - qx, dy = y - qy, dz = z - qz;
+                const dl = Math.hypot(dx, dy, dz);
+                if (dl > 1e-8) {
+                    const s = chamfer / dl;
+                    posArr[i * 3] = qx + dx * s;
+                    posArr[i * 3 + 1] = qy + dy * s;
+                    posArr[i * 3 + 2] = qz + dz * s;
+                    norArr[i * 3] = dx / dl;
+                    norArr[i * 3 + 1] = dy / dl;
+                    norArr[i * 3 + 2] = dz / dl;
+                }
+            }
+
+            // Six faces: dominant normal component → pip count; texture axis mapping matches BoxGeometry's buildPlane (used for global pip-center coordinates)
+            const faces = [
+                { axis: 0, sign: 1, value: 1, uAxis: 2, uDir: -1, vAxis: 1, vDir: -1 },  // +X
+                { axis: 0, sign: -1, value: 6, uAxis: 2, uDir: 1, vAxis: 1, vDir: -1 },  // -X
+                { axis: 1, sign: 1, value: 2, uAxis: 0, uDir: 1, vAxis: 2, vDir: 1 },    // +Y
+                { axis: 1, sign: -1, value: 5, uAxis: 0, uDir: 1, vAxis: 2, vDir: -1 },  // -Y
+                { axis: 2, sign: 1, value: 3, uAxis: 0, uDir: 1, vAxis: 1, vDir: -1 },   // +Z
+                { axis: 2, sign: -1, value: 4, uAxis: 0, uDir: -1, vAxis: 1, vDir: -1 }  // -Z
+            ];
+
+            // Step 2: pip dents (flat-region vertices only, indented along the face normal)
+            const dentAmounts = new Float32Array(count);
+            const newNorms = new Float32Array(count * 3);
+
+            for (let i = 0; i < count; i++) {
+                const nx = norArr[i * 3], ny = norArr[i * 3 + 1], nz = norArr[i * 3 + 2];
+                const ax = Math.abs(nx), ay = Math.abs(ny), az = Math.abs(nz);
+                if (Math.max(ax, ay, az) < 0.999) continue; // skip vertices on the rounded arc
+
+                let face;
+                if (ax >= ay && ax >= az) face = faces[nx > 0 ? 0 : 1];
+                else if (ay >= az) face = faces[ny > 0 ? 2 : 3];
+                else face = faces[nz > 0 ? 4 : 5];
+
+                // Canvas coordinates (CanvasTexture flips Y by default): u=uv.x, v=1-uv.y
+                const u = uv.getX(i);
+                const v = 1 - uv.getY(i);
+
+                const dotR = (face.value === 1) ? 0.165 : 0.105; // dent radius (slightly larger than the texture pip radius)
+
+                let bestD = Infinity, bestCx = 0, bestCy = 0;
+                for (const [cx, cy] of dotsLayout[face.value]) {
+                    const d = Math.hypot(u - cx, v - cy);
+                    if (d < dotR && d < bestD) { bestD = d; bestCx = cx; bestCy = cy; }
+                }
+
+                if (bestD < dotR) {
+                    const t = 1 - bestD / dotR; // deepest at center, smooth falloff at edges
+                    dentAmounts[i] = dentDepth * (1 - (1 - t) * (1 - t));
+
+                    // Global coordinates of the pip center (face center + in-face texture offset)
+                    const circleC = [0, 0, 0];
+                    circleC[face.axis] = face.sign * half;
+                    circleC[face.uAxis] = face.uDir * (bestCx - 0.5) * size;
+                    circleC[face.vAxis] = face.vDir * (bestCy - 0.5) * size;
+
+                    // Dent surface normal: points from the vertex toward the pip center (radially inward),
+                    // making the pit walls read as a dark ring = indentation; the pit bottom center
+                    // (coinciding with the pip center) degrades to the face normal
+                    let dx = circleC[0] - posArr[i * 3];
+                    let dy = circleC[1] - posArr[i * 3 + 1];
+                    let dz = circleC[2] - posArr[i * 3 + 2];
+                    const dl = Math.hypot(dx, dy, dz);
+                    if (dl > 1e-6) {
+                        newNorms[i * 3] = dx / dl;
+                        newNorms[i * 3 + 1] = dy / dl;
+                        newNorms[i * 3 + 2] = dz / dl;
+                    } else {
+                        newNorms[i * 3] = nx; newNorms[i * 3 + 1] = ny; newNorms[i * 3 + 2] = nz;
+                    }
+                }
+            }
+
+            // Indent positions along the face normal and update dent normals (other normals on the rounded/flat regions stay unchanged)
+            for (let i = 0; i < count; i++) {
+                if (dentAmounts[i] > 0) {
+                    posArr[i * 3] -= norArr[i * 3] * dentAmounts[i];
+                    posArr[i * 3 + 1] -= norArr[i * 3 + 1] * dentAmounts[i];
+                    posArr[i * 3 + 2] -= norArr[i * 3 + 2] * dentAmounts[i];
+                    norArr[i * 3] = newNorms[i * 3];
+                    norArr[i * 3 + 1] = newNorms[i * 3 + 1];
+                    norArr[i * 3 + 2] = newNorms[i * 3 + 2];
+                }
+            }
+
+            return geo;
+        }
+
+        // Perfectly-aimed projectile algorithm
+        function throwDice(screenX, screenY) {
+            const size = 0.45;
+
+            const geometry = createDiceGeometry(size);
+            const diceMesh = new THREE.Mesh(geometry, diceTextures);
+            diceMesh.castShadow = true;
+            diceMesh.receiveShadow = true;
+            scene.add(diceMesh);
+
+            const halfExtents = new CANNON.Vec3(size / 2, size / 2, size / 2);
+            const boxShape = new CANNON.Box(halfExtents);
+            const diceBody = new CANNON.Body({
+                mass: 1.2,
+                shape: boxShape,
+                material: diceMaterialPhysics,
+                linearDamping: 0.15,  // damped air resistance
+                angularDamping: 0.15
+            });
+
+            const raycaster = new THREE.Raycaster();
+            const mouse = new THREE.Vector2(
+                (screenX / window.innerWidth) * 2 - 1,
+                -(screenY / window.innerHeight) * 2 + 1
+            );
+            raycaster.setFromCamera(mouse, camera);
+
+            const spawnPos = new THREE.Vector3();
+            raycaster.ray.at(4.5, spawnPos);
+            spawnPos.y = Math.max(spawnPos.y, 4.8);
+
+            diceBody.position.copy(spawnPos);
+
+            // Precise landing spot at the bowl bottom
+            const targetPos = new THREE.Vector3(
+                (Math.random() - 0.5) * 0.6,
+                0.55,
+                (Math.random() - 0.5) * 0.6
+            );
+
+            // Inverse projectile kinematics
+            const g = Math.abs(world.gravity.y);
+            const peakHeight = spawnPos.y + 0.8; // modest arc for a gentle entry into the bowl
+
+            const vy = Math.sqrt(2 * g * (peakHeight - spawnPos.y));
+            const t1 = vy / g;
+
+            const t2 = Math.sqrt(2 * (peakHeight - targetPos.y) / g);
+            const totalTime = t1 + t2;
+
+            const vx = (targetPos.x - spawnPos.x) / totalTime;
+            const vz = (targetPos.z - spawnPos.z) / totalTime;
+
+            diceBody.velocity.set(vx, vy, vz);
+
+            diceBody.quaternion.setFromEuler(
+                Math.random() * Math.PI * 2,
+                Math.random() * Math.PI * 2,
+                Math.random() * Math.PI * 2
+            );
+            diceBody.angularVelocity.set(
+                (Math.random() - 0.5) * 20,
+                (Math.random() - 0.5) * 20,
+                (Math.random() - 0.5) * 20
+            );
+
+            diceBody.addEventListener('collide', (e) => {
+                const impact = e.contact.getImpactVelocityAlongNormal();
+                playImpactSound(impact);
+            });
+
+            world.addBody(diceBody);
+
+            diceArray.push({ mesh: diceMesh, body: diceBody, value: 1 });
+            resetDecisionState();
+        }
+
+        function updateDiceValues() {
+            let total = 0;
+
+            const faceNormals = [
+                { vector: new THREE.Vector3(1, 0, 0), value: 1 },  // +X
+                { vector: new THREE.Vector3(-1, 0, 0), value: 6 }, // -X
+                { vector: new THREE.Vector3(0, 1, 0), value: 2 },  // +Y
+                { vector: new THREE.Vector3(0, -1, 0), value: 5 }, // -Y
+                { vector: new THREE.Vector3(0, 0, 1), value: 3 },  // +Z
+                { vector: new THREE.Vector3(0, 0, -1), value: 4 }  // -Z
+            ];
+
+            const worldUp = new THREE.Vector3(0, 1, 0);
+
+            diceArray.forEach(dice => {
+                let maxDot = -Infinity;
+                let currentTopValue = 1;
+
+                faceNormals.forEach(face => {
+                    const worldNormal = face.vector.clone().applyQuaternion(dice.mesh.quaternion);
+                    const dot = worldNormal.dot(worldUp);
+                    if (dot > maxDot) {
+                        maxDot = dot;
+                        currentTopValue = face.value;
+                    }
+                });
+
+                dice.value = currentTopValue;
+                total += dice.value;
+            });
+
+            scoreElement.textContent = total;
+            return total;
+        }
+
+        function clearAllDice() {
+            diceArray.forEach(dice => {
+                scene.remove(dice.mesh);
+                dice.mesh.geometry.dispose();
+                world.removeBody(dice.body);
+            });
+            diceArray = [];
+            scoreElement.textContent = '0';
+            resetDecisionState();
+        }
+
+        function onPointerDown(event) {
+            if (event.target.tagName === 'BUTTON') return;
+            if (event.target.closest('.decision-panel')) return;
+            throwDice(event.clientX, event.clientY);
+        }
+
+        function onWindowResize() {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            composer.setSize(window.innerWidth, window.innerHeight);
+        }
+
+        const clock = new THREE.Clock();
+        function animate() {
+            requestAnimationFrame(animate);
+
+            const delta = Math.min(clock.getDelta(), 0.1);
+            
+            // Sub-stepped physics to prevent tunneling at high frame rates
+            world.step(1 / 60, delta, 15);
+
+            diceArray.forEach(dice => {
+                dice.mesh.position.copy(dice.body.position);
+                dice.mesh.quaternion.copy(dice.body.quaternion);
+            });
+
+            if (diceArray.length > 0) {
+                // Rounded total is used for real-time decision computation (avoids float jitter)
+                const total = Math.round(updateDiceValues());
+
+                // Update highlight in real time: total % 6 decides which decision is highlighted
+                const decision = ((total - 1) % DECISION_COUNT) + 1; // treat 0 as item 6
+                highlightDecision(decision);
+            }
+
+            composer.render();
+        }
+
+        init();
+    </script>
+</body>
+</html>
+
