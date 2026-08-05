@@ -134,12 +134,59 @@
             border: 1px solid rgba(255, 255, 255, 0.12);
         }
 
-        /* Decision panel (left) */
-        .decision-panel {
+        /* Left stack: dice count selector + decision panel */
+        .left-stack {
             position: absolute;
             left: 20px;
             top: 50%;
             transform: translateY(-50%);
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            z-index: 10;
+        }
+
+        .dice-count-panel {
+            width: 270px;
+            background: rgba(255, 255, 255, 0.12);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border: 1px solid rgba(255, 255, 255, 0.22);
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.3);
+            border-radius: 16px;
+            padding: 14px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .dice-count-panel:hover {
+            background: rgba(255, 255, 255, 0.18);
+            transform: translateY(-2px);
+        }
+
+        .dice-count-panel:active {
+            transform: translateY(0);
+        }
+
+        .dice-count-label {
+            color: rgba(255, 255, 255, 0.85);
+            font-size: 12px;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            margin-bottom: 6px;
+        }
+
+        .dice-count-value {
+            color: #ffffff;
+            font-size: 32px;
+            font-weight: 800;
+            line-height: 1;
+            text-shadow: 0 2px 10px rgba(0, 0, 0, 0.4);
+        }
+
+        /* Decision panel (left) */
+        .decision-panel {
             width: 270px;
             background: rgba(255, 255, 255, 0.12);
             backdrop-filter: blur(16px);
@@ -148,7 +195,6 @@
             box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.3);
             border-radius: 16px;
             padding: 16px 14px;
-            z-index: 10;
         }
 
         .decision-header {
@@ -217,12 +263,17 @@
         }
 
         @media (max-width: 900px) {
-            .decision-panel {
+            .left-stack {
                 left: 10px;
                 top: auto;
                 bottom: 72px;
                 transform: none;
+            }
+            .dice-count-panel,
+            .decision-panel {
                 width: 220px;
+            }
+            .decision-panel {
                 padding: 12px 10px;
             }
         }
@@ -269,9 +320,15 @@
 
     <button class="btn sound-btn" id="sound-btn" title="Toggle sound">🔊</button>
 
-    <div class="decision-panel">
-        <div class="decision-header">Decisions</div>
-        <div class="decision-list" id="decision-list"></div>
+    <div class="left-stack">
+        <div class="dice-count-panel" id="dice-count-panel" title="Click to change dice count per throw">
+            <div class="dice-count-label">Dice per Throw</div>
+            <div class="dice-count-value" id="dice-count-value">×1</div>
+        </div>
+        <div class="decision-panel">
+            <div class="decision-header">Decisions</div>
+            <div class="decision-list" id="decision-list"></div>
+        </div>
     </div>
 
     <div class="tip">🎲 Click anywhere to roll a dice into the bowl</div>
@@ -398,6 +455,15 @@
         let diceArray = [];
         const scoreElement = document.getElementById('total-score');
         const resetButton = document.getElementById('reset-btn');
+
+        // Dice count per throw: cycles ×1 → ×5 → ×10 → ×15 → ×20 → ×1
+        const DICE_COUNT_STEPS = [1, 5, 10, 15, 20];
+        let diceCountStepIndex = 0;
+        const diceCountValue = document.getElementById('dice-count-value');
+        document.getElementById('dice-count-panel').addEventListener('click', () => {
+            diceCountStepIndex = (diceCountStepIndex + 1) % DICE_COUNT_STEPS.length;
+            diceCountValue.textContent = '×' + DICE_COUNT_STEPS[diceCountStepIndex];
+        });
 
         // Decision panel
         const decisionList = document.getElementById('decision-list');
@@ -1032,6 +1098,9 @@
             const spawnPos = new THREE.Vector3();
             raycaster.ray.at(4.5, spawnPos);
             spawnPos.y = Math.max(spawnPos.y, 4.8);
+            // Slight random spread so multiple dice don't spawn overlapping
+            spawnPos.x += (Math.random() - 0.5) * 1.2;
+            spawnPos.z += (Math.random() - 0.5) * 1.2;
 
             diceBody.position.copy(spawnPos);
 
@@ -1128,7 +1197,11 @@
         function onPointerDown(event) {
             if (event.target.tagName === 'BUTTON') return;
             if (event.target.closest('.decision-panel')) return;
-            throwDice(event.clientX, event.clientY);
+            if (event.target.closest('.dice-count-panel')) return;
+            const count = DICE_COUNT_STEPS[diceCountStepIndex];
+            for (let i = 0; i < count; i++) {
+                throwDice(event.clientX, event.clientY);
+            }
         }
 
         function onWindowResize() {
