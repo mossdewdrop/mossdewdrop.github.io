@@ -16,11 +16,14 @@ All tool entries are defined in [menu.json](menu.json).
 
 - **Channel Merger** (`functions/image-tools/channel-merger`): Merge channels (R/G/B/A) from up to 4 input images, preview, then export a merged PNG at a chosen resolution.
 - **Image 2 SDF** (`functions/image-tools/img-2-sdf`): Batch-generate Signed Distance Field (SDF) textures from input images using a Web Worker; supports invert input, output resolution, and max distance.
+- **SDF Shadow Threshold Map** (`functions/image-tools/sdf-shadow-threshold-map`): Generate smooth shadow threshold maps by interpolating between the SDFs of multiple images; supports 8/16-bit depth, grayscale/RGB/RGBA (with mask) color modes, Gaussian/bilateral filtering, and gradient direction reversal.
 - **Gradient Tools** (`functions/image-tools/gradient-tools`): Build multi-row gradients, reorder rows, bake to an image, and store configuration in PNG metadata for reload.
 - **Separate Objects** (`functions/image-tools/separate-objects`): Detect opaque connected regions, manage/merge bounding boxes, and export all regions as a ZIP.
 - **Image Alpha Fill** (`functions/image-tools/img-alpha-fill`): Fill RGB values in transparent areas from nearby opaque pixels to avoid fringe artifacts; saves PNG while preserving original alpha.
 - **Crop Image** (`functions/image-tools/crop-image`): Create multiple rectangular selections (Ctrl/Cmd + drag) and export each selection as a separate PNG.
 - **Batch Resize Images** (`functions/image-tools/image-resizer`): Batch resize images into multiple preset/custom resolutions with different scaling modes and download as a ZIP.
+- **Tree Data Editor** (`functions/design-tools/tree-data-editor`): Node-based tree data editor with drag nodes, links, marquee selection, auto layout, and grid snapping; edit per-node properties and import/export JSON (drag-and-drop import supported).
+- **3D Dice** (`functions/other/3dDice`): 3D dice roller built with Three.js and cannon-es physics; click to throw 1/5/10/15/20 dice into a porcelain bowl, with real-time score and a decision board (total mod 6) highlight, PCSS soft shadows, SSR/SSAO post-processing, and collision sounds.
 - **About** (`functions/other/about`): Quick explanation of the JSON-driven extension model.
 
 ## Getting Started
