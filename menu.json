@@ -53,6 +53,10 @@
         "path": "functions/other/3dDice"
       },
       {
+        "name": "Gradient Jigsaw",
+        "path": "functions/other/gradient-jigsaw"
+      },
+      {
         "name": "About",
         "path": "functions/other/about"
       }

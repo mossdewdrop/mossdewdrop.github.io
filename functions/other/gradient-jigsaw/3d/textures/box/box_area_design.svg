@@ -1,0 +1,50 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!-- Created with Inkscape (http://www.inkscape.org/) -->
+
+<svg
+   width="1024"
+   height="1024"
+   viewBox="0 0 270.93333 270.93333"
+   version="1.1"
+   id="svg1"
+   xml:space="preserve"
+   sodipodi:docname="box_area_design.svg"
+   inkscape:version="1.4.4 (dcaf3e7, 2026-05-05)"
+   xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
+   xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
+   xmlns="http://www.w3.org/2000/svg"
+   xmlns:svg="http://www.w3.org/2000/svg"><sodipodi:namedview
+     id="namedview1"
+     pagecolor="#ffffff"
+     bordercolor="#666666"
+     borderopacity="1.0"
+     inkscape:showpageshadow="2"
+     inkscape:pageopacity="0.0"
+     inkscape:pagecheckerboard="0"
+     inkscape:deskcolor="#d1d1d1"
+     inkscape:document-units="mm"
+     inkscape:zoom="0.35355339"
+     inkscape:cx="561.44278"
+     inkscape:cy="620.83975"
+     inkscape:window-width="1920"
+     inkscape:window-height="1009"
+     inkscape:window-x="-8"
+     inkscape:window-y="-8"
+     inkscape:window-maximized="1"
+     inkscape:current-layer="svg1" /><defs
+     id="defs1" /><path
+     id="rect1"
+     style="font-variation-settings:'wght' 700;fill:#edaf49;stroke-width:0.264583px;stroke-miterlimit:2;paint-order:stroke fill markers"
+     d="M 6.9880967,7.5240827 H 263.94524 V 173.05391 H 6.9880967 Z"
+     sodipodi:nodetypes="ccccc"
+     inkscape:label="Image_Area" /><path
+     id="rect2"
+     style="font-variation-settings:'wght' 700;stroke-width:0.264583px;stroke-miterlimit:2;paint-order:stroke fill markers"
+     d="m 155.03571,141.37354 h 103.75314 v 26.13627 H 155.03571 Z"
+     sodipodi:nodetypes="ccccc"
+     inkscape:label="PicCount_Area" /><path
+     id="rect2-4"
+     style="font-variation-settings:'wght' 700;stroke-width:0.264583px;stroke-miterlimit:2;paint-order:stroke fill markers"
+     d="M 12.887271,14.030717 H 146.73675 V 46.107054 H 12.887271 Z"
+     sodipodi:nodetypes="ccccc"
+     inkscape:label="Title_Area" /></svg>
