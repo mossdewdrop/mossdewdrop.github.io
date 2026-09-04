@@ -10,7 +10,14 @@
   -->
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@400..800&family=Jua&family=M+PLUS+Rounded+1c:wght@400;700&family=ZCOOL+KuaiLe&display=swap" rel="stylesheet" />
+  <!-- 异步加载字体样式（media=print 不阻塞渲染，加载完成后切回 all）：
+       该样式表若按默认方式放在 head 会阻塞首屏绘制——弱网/无法访问
+       fonts.googleapis.com 时页面会白屏卡到请求超时才出现主界面。
+       加载失败时直接使用系统回退字体（font-display: swap 已在 URL 中声明）。 -->
+  <link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@400..800&family=Jua&family=M+PLUS+Rounded+1c:wght@400;700&family=ZCOOL+KuaiLe&display=swap" rel="stylesheet" media="print" onload="this.media='all'" />
+  <noscript>
+    <link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@400..800&family=Jua&family=M+PLUS+Rounded+1c:wght@400;700&family=ZCOOL+KuaiLe&display=swap" rel="stylesheet" />
+  </noscript>
   <style>
     html, body {
       margin: 0;
@@ -29,7 +36,7 @@
       display: block;
     }
   </style>
-  <script type="module" crossorigin src="./assets/index-BgXSrIUr.js"></script>
+  <script type="module" crossorigin src="./assets/index-CaCGXHiE.js"></script>
 </head>
 <body>
   <div id="app"></div>
