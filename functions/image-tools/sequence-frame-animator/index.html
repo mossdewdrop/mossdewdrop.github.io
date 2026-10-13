@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sequence Frame Animator</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="app">
+        <!-- Top: project name -->
+        <header class="topbar">
+            <input id="projectName" class="project-name" type="text" value="anima" spellcheck="false" title="Click to edit project name">
+            <span class="topbar-hint">Drop images or MP4 video to add frames</span>
+        </header>
+
+        <!-- Middle: current frame preview -->
+        <main id="stage" class="stage">
+            <canvas id="preview"></canvas>
+            <div id="emptyTip" class="empty-tip">
+                <div class="empty-icon">⛶</div>
+                <div>Drop images or MP4 video here</div>
+                <div class="empty-sub">Multiple images supported; drag to reorder</div>
+            </div>
+            <div id="progressOverlay" class="progress-overlay">
+                <div class="progress-box">
+                    <div class="progress-text" id="progressText">Parsing video…</div>
+                    <div class="progress-bar"><div class="progress-fill" id="progressFill"></div></div>
+                </div>
+            </div>
+        </main>
+
+        <!-- Timeline -->
+        <section class="timeline-wrap">
+            <div id="timeline" class="timeline"></div>
+        </section>
+
+        <!-- Bottom: playback controls -->
+        <footer class="controls">
+            <div class="controls-left">
+                <button id="btnPlay" class="btn btn-icon" title="Play/Pause">▶</button>
+                <button id="btnPrev" class="btn btn-icon" title="Previous frame">⏮</button>
+                <button id="btnNext" class="btn btn-icon" title="Next frame">⏭</button>
+                <span id="frameCounter" class="counter">0 / 0</span>
+            </div>
+            <div class="controls-right">
+                <label class="fps-label">FPS
+                    <input id="fpsInput" class="fps-input" type="number" min="1" max="60" value="15">
+                    <span class="fps-unit">fps</span>
+                </label>
+                <button id="btnDownload" class="btn btn-download" title="Package active frames as a ZIP">Download ZIP</button>
+            </div>
+        </footer>
+    </div>
+
+    <script src="../../utils/jszip.min.js"></script>
+    <script src="script.js"></script>
+</body>
+</html>

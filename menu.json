@@ -33,6 +33,10 @@
       {
         "name": "Batch Resize Images",
         "path": "functions/image-tools/image-resizer"
+      },
+      {
+        "name": "Sequence Frame Animator",
+        "path": "functions/image-tools/sequence-frame-animator"
       }
     ]
   },
