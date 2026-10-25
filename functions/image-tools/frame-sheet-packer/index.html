@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="color-scheme" content="dark">
+    <title>Frame Sheet Packer</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="app">
+        <!-- Mode switch -->
+        <header class="topbar">
+            <div class="mode-switch" role="tablist" aria-label="Mode">
+                <button class="mode-btn active" data-mode="merge" role="tab" aria-selected="true">Pack Frames</button>
+                <button class="mode-btn" data-mode="split" role="tab" aria-selected="false">Split Sheet</button>
+            </div>
+            <span id="topbarHint" class="topbar-hint">Drop a sequence of images to pack them into frame sheets</span>
+        </header>
+
+        <!-- ===== Merge mode ===== -->
+        <main id="mergeView" class="mode-view">
+            <aside class="sidebar">
+                <div class="sidebar-head">
+                    <span class="sidebar-title">Frames <span id="frameCount" class="count-badge">0</span></span>
+                    <button id="sortBtn" class="btn btn-small" title="Sort frames by file name">Sort A–Z</button>
+                </div>
+                <ul id="frameList" class="file-list"></ul>
+                <div id="mergeDropHint" class="drop-hint">
+                    <div>Drop images here</div>
+                    <small>or click to browse</small>
+                </div>
+            </aside>
+
+            <section class="content">
+                <div class="content-head">
+                    <label class="project-label" for="projectName">Project</label>
+                    <input id="projectName" class="project-name" type="text" value="frame_sheet" spellcheck="false" title="Output file name">
+                    <span id="sheetInfo" class="sheet-info"></span>
+                </div>
+
+                <div id="mergeStage" class="stage" title="Click to add images">
+                    <canvas id="previewCanvas"></canvas>
+                    <div id="mergeEmpty" class="empty-state">
+                        <div class="empty-icon">▦</div>
+                        <div>Drop a sequence of images here</div>
+                        <div class="empty-sub">or click to browse</div>
+                    </div>
+                    <div id="pager" class="pager">
+                        <button id="pagerPrev" class="pager-btn" title="Previous sheet" aria-label="Previous sheet">&lt;</button>
+                        <span id="pagerText" class="pager-text">1/1</span>
+                        <button id="pagerNext" class="pager-btn" title="Next sheet" aria-label="Next sheet">&gt;</button>
+                    </div>
+                </div>
+
+                <div class="settings">
+                    <div class="settings-grid">
+                        <div class="field">
+                            <label for="orderSelect">Reading order</label>
+                            <select id="orderSelect">
+                                <option value="tl">Top-left start (L→R, T→B)</option>
+                                <option value="bl">Bottom-left start (L→R, B→T)</option>
+                            </select>
+                        </div>
+                        <div class="field">
+                            <span class="field-label">Frames per sheet (cols × rows)</span>
+                            <div class="inline">
+                                <input id="colsInput" class="num-input" type="number" min="1" step="1" value="4" aria-label="Columns per sheet">
+                                <span class="times">×</span>
+                                <input id="rowsInput" class="num-input" type="number" min="1" step="1" value="4" aria-label="Rows per sheet">
+                                <span id="perSheetInfo" class="hint"></span>
+                            </div>
+                        </div>
+                        <div class="field">
+                            <span class="field-label">Export resolution (px, -1 = auto)</span>
+                            <div class="inline">
+                                <input id="exportW" class="num-input" type="number" min="-1" step="1" value="-1" aria-label="Export width">
+                                <span class="times">×</span>
+                                <input id="exportH" class="num-input" type="number" min="-1" step="1" value="-1" aria-label="Export height">
+                                <label class="checkbox"><input id="forceSquare" type="checkbox"> Force square</label>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="settings-actions">
+                        <span id="outputInfo" class="hint"></span>
+                        <button id="downloadBtn" class="btn btn-download">Download</button>
+                    </div>
+                </div>
+            </section>
+        </main>
+
+        <!-- ===== Split mode ===== -->
+        <main id="splitView" class="mode-view hidden">
+            <aside class="sidebar">
+                <div class="sidebar-head">
+                    <span class="sidebar-title">Sheets <span id="sheetCount" class="count-badge">0</span></span>
+                </div>
+                <ul id="sheetList" class="file-list"></ul>
+                <div id="splitDropHint" class="drop-hint">
+                    <div>Drop frame sheets here</div>
+                    <small>or click to browse</small>
+                </div>
+            </aside>
+
+            <section class="content">
+                <div class="content-head">
+                    <span class="project-label">Sheet</span>
+                    <span id="splitSheetName" class="sheet-name">No sheet selected</span>
+                </div>
+
+                <div id="splitStage" class="stage" title="Click to add images">
+                    <canvas id="splitPreview"></canvas>
+                    <div id="splitEmpty" class="empty-state">
+                        <div class="empty-icon">▤</div>
+                        <div>Drop frame sheets here</div>
+                        <div class="empty-sub">Each sheet is split with the same grid settings</div>
+                    </div>
+                </div>
+
+                <div class="settings">
+                    <div class="settings-grid">
+                        <div class="field">
+                            <label for="splitOrder">Reading order</label>
+                            <select id="splitOrder">
+                                <option value="tl">Top-left start (L→R, T→B)</option>
+                                <option value="bl">Bottom-left start (L→R, B→T)</option>
+                            </select>
+                        </div>
+                        <div class="field">
+                            <span class="field-label">Grid (cols × rows)</span>
+                            <div class="inline">
+                                <input id="splitCols" class="num-input" type="number" min="1" step="1" value="4" aria-label="Grid columns">
+                                <span class="times">×</span>
+                                <input id="splitRows" class="num-input" type="number" min="1" step="1" value="4" aria-label="Grid rows">
+                                <span id="splitGridInfo" class="hint"></span>
+                            </div>
+                        </div>
+                        <div class="field">
+                            <span class="field-label">Output</span>
+                            <span id="splitOutputInfo" class="hint block-hint">Each frame: —</span>
+                        </div>
+                    </div>
+                    <div class="settings-actions">
+                        <span class="hint">One folder per source sheet inside the ZIP</span>
+                        <button id="splitDownloadBtn" class="btn btn-download">Download ZIP</button>
+                    </div>
+                </div>
+            </section>
+        </main>
+
+        <input id="fileInput" type="file" accept="image/*" multiple hidden>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>

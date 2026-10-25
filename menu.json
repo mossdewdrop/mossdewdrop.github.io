@@ -37,6 +37,10 @@
       {
         "name": "Sequence Frame Animator",
         "path": "functions/image-tools/sequence-frame-animator"
+      },
+      {
+        "name": "Frame Sheet Packer",
+        "path": "functions/image-tools/frame-sheet-packer"
       }
     ]
   },
